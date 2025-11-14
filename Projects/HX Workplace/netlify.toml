@@ -1,0 +1,17 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+  functions = "netlify/functions"
+  edge_functions = "netlify/edge-functions"
+
+[[edge_functions]]
+  path = "/api/*"
+  function = "api"
+
+[dev]
+  framework = "vite"
+  targetPort = 5173
+
+[functions]
+  external_node_modules = ["@netlify/functions"]
+  node_bundler = "esbuild"
