@@ -10,124 +10,45 @@ export async function login(email: string, password: string) {
   try {
     console.log('Attempting login for:', email);
     
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const authResult = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
-    if (error) {
-      console.error('Supabase auth error:', error);
-      throw new Error(error.message || 'Invalid login credentials');
+    console.log('Auth result received:', { 
+      hasError: !!authResult.error, 
+      hasUser: !!authResult.data?.user,
+      userId: authResult.data?.user?.id 
+    });
+
+    if (authResult.error) {
+      console.error('Supabase auth error:', authResult.error);
+      throw new Error(authResult.error.message || 'Invalid login credentials');
     }
 
-    if (!data.user) {
+    if (!authResult.data?.user) {
       console.error('No user returned from Supabase');
       throw new Error('Login failed - no user returned');
     }
 
-    console.log('Auth successful, fetching profile for user:', data.user.id);
-
-    // Fetch the user's profile (non-blocking - return immediately if it takes too long)
-    let profile: any = null;
-    let profileError: any = null;
+    console.log('Auth successful for user:', authResult.data.user.id);
     
-    try {
-      // Use Promise.race to timeout profile fetch after 2 seconds
-      const profilePromise = supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', data.user.id)
-        .single();
-      
-      const timeoutPromise = new Promise((resolve) => 
-        setTimeout(() => resolve({ data: null, error: { code: 'TIMEOUT' } }), 2000)
-      );
-      
-      const result = await Promise.race([profilePromise, timeoutPromise]) as any;
-      profile = result?.data;
-      profileError = result?.error;
-      
-      if (profileError?.code === 'TIMEOUT') {
-        console.warn('Profile fetch timed out, returning basic user data');
-        profileError = null; // Clear error so we return basic data
-      }
-    } catch (err: any) {
-      console.error('Profile fetch exception:', err);
-      profileError = err;
-    }
+    // Return immediately with basic user data - let auth state listener handle profile loading
+    // This prevents the login function from hanging on profile fetch
+    const basicUser = {
+      id: authResult.data.user.id,
+      name: authResult.data.user.email?.split('@')[0] || 'User',
+      email: authResult.data.user.email || null,
+      avatar: null,
+      role: null,
+      department: null,
+    };
 
-    if (profileError) {
-      console.error('Error fetching profile:', profileError);
-      // If profile doesn't exist, create a basic one
-      if (profileError.code === 'PGRST116') {
-        console.warn('Profile not found, creating basic profile');
-        const { data: newProfile, error: createError } = await supabase
-          .from('profiles')
-          .insert({
-            id: data.user.id,
-            name: data.user.email?.split('@')[0] || 'User',
-            email: data.user.email || null,
-          })
-          .select()
-          .single();
-        
-        if (createError) {
-          console.error('Failed to create profile:', createError);
-          // Still return user data even if profile creation fails - auth worked
-          console.log('Returning basic user data due to profile creation failure');
-          return {
-            user: {
-              id: data.user.id,
-              name: data.user.email?.split('@')[0] || 'User',
-              email: data.user.email || null,
-              avatar: null,
-              role: null,
-              department: null,
-            } as any,
-            session: data.session,
-          };
-        }
-        
-        console.log('Profile created successfully:', newProfile?.name);
-        return {
-          user: newProfile,
-          session: data.session,
-        };
-      }
-      // For other errors, still return basic user data - auth succeeded
-      console.warn('Profile fetch failed, returning basic user data');
-      return {
-        user: {
-          id: data.user.id,
-          name: data.user.email?.split('@')[0] || 'User',
-          email: data.user.email || null,
-          avatar: null,
-          role: null,
-          department: null,
-        } as any,
-        session: data.session,
-      };
-    }
-
-    if (!profile) {
-      console.warn('Profile is null, returning basic user data');
-      return {
-        user: {
-          id: data.user.id,
-          name: data.user.email?.split('@')[0] || 'User',
-          email: data.user.email || null,
-          avatar: null,
-          role: null,
-          department: null,
-        } as any,
-        session: data.session,
-      };
-    }
-
-    console.log('Login successful, profile loaded:', profile.name);
+    console.log('Login function completing, returning basic user data');
+    
     return {
-      user: profile,
-      session: data.session,
+      user: basicUser as any,
+      session: authResult.data.session,
     };
   } catch (error: any) {
     console.error('Login function error:', error);
