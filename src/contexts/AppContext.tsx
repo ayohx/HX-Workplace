@@ -217,6 +217,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             userId: post.user_id,
             content: post.content,
             timestamp: post.created_at,
+            media_url: post.media_url || [], // Include media URLs for images
             likes: post.reactions?.filter((r: any) => r.reaction_type === 'like').map((r: any) => r.user_id) || [],
             comments: post.comments?.map((c: any) => ({
               id: c.id,
@@ -224,6 +225,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               content: c.content,
               timestamp: c.created_at,
             })) || [],
+            // Include user profile data for PostCard
+            profiles: post.profiles,
           }));
           
           setPosts(transformedPosts);
@@ -271,8 +274,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               userId: newPost.user_id,
               content: newPost.content,
               timestamp: newPost.created_at,
+              media_url: newPost.media_url || [],
               likes: [],
               comments: [],
+              profiles: newPost.profiles,
             }, ...prev]);
           }
         }
@@ -357,15 +362,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         content: postData.content,
       });
 
-      // Replace temp post with real post
+      // Replace temp post with real post (transform database format)
       setPosts(prev =>
         prev.map(p => p.id === tempPost.id ? {
           id: post.id,
           userId: post.user_id,
           content: post.content,
           timestamp: post.created_at,
+          media_url: post.media_url || [],
           likes: [],
           comments: [],
+          profiles: post.profiles || currentUser,
         } : p)
       );
     } catch (error) {
@@ -419,6 +426,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         userId: post.user_id,
         content: post.content,
         timestamp: post.created_at,
+        media_url: post.media_url || [],
         likes: post.reactions?.filter((r: any) => r.reaction_type === 'like').map((r: any) => r.user_id) || [],
         comments: post.comments?.map((c: any) => ({
           id: c.id,
@@ -426,6 +434,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           content: c.content,
           timestamp: c.created_at,
         })) || [],
+        profiles: post.profiles,
       }));
 
       setPosts(prev => [...prev, ...transformedPosts]);

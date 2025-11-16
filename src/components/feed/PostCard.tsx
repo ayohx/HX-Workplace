@@ -19,8 +19,9 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
   const [editContent, setEditContent] = useState(post.content);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  
-  const author = users.find(user => user.id === post.userId);
+
+  // Use post.profiles if available (from database), otherwise fall back to users array
+  const author = post.profiles || users.find(user => user.id === post.userId);
   const isLiked = post.likes.includes(currentUser?.id);
   const commentsCount = post.comments.length;
   const isOwner = currentUser?.id === post.userId;
@@ -150,16 +151,39 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
       <div className="p-4">
         <p className="text-neutral-800 whitespace-pre-line">{post.content}</p>
         
-        {/* Attachments (if any) */}
-        {post.attachments && post.attachments.length > 0 && (
+        {/* Images from media_url (database format) */}
+        {post.media_url && Array.isArray(post.media_url) && post.media_url.length > 0 && (
+          <div className="mt-3 space-y-2">
+            {post.media_url.map((url: string, index: number) => (
+              <img 
+                key={`media-${index}`}
+                src={url} 
+                alt={`Post image ${index + 1}`}
+                className="rounded-lg max-h-96 w-auto"
+                onError={(e) => {
+                  // Hide broken images
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                }}
+              />
+            ))}
+          </div>
+        )}
+        
+        {/* Attachments (legacy mock data format) */}
+        {post.attachments && Array.isArray(post.attachments) && post.attachments.length > 0 && (
           <div className="mt-3">
             {post.attachments.map((attachment: any) => (
-              <div key={attachment.id} className="mt-2">
+              <div key={attachment.id || attachment.url} className="mt-2">
                 {attachment.type === 'image' ? (
                   <img 
                     src={attachment.url} 
-                    alt={attachment.name} 
+                    alt={attachment.name || 'Post image'} 
                     className="rounded-lg max-h-96 w-auto"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                    }}
                   />
                 ) : (
                   <a 
@@ -167,9 +191,9 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
                     className="flex items-center p-2 border border-neutral-200 rounded-md hover:bg-neutral-50"
                   >
                     <div className="bg-primary-100 text-primary-600 p-2 rounded mr-2">
-                      <span className="font-medium text-xs">{attachment.name.split('.').pop().toUpperCase()}</span>
+                      <span className="font-medium text-xs">{attachment.name?.split('.').pop()?.toUpperCase() || 'FILE'}</span>
                     </div>
-                    <span className="text-sm text-neutral-700">{attachment.name}</span>
+                    <span className="text-sm text-neutral-700">{attachment.name || 'Attachment'}</span>
                   </a>
                 )}
               </div>
