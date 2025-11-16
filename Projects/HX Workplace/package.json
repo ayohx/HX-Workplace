@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "bmad:refresh": "npx bmad-method@latest refresh",
+    "bmad:list": "npx bmad-method@latest list",
+    "bmad:validate": "npx bmad-method@latest validate"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.4",

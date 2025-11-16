@@ -1,42 +1,18 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { createPost, login, register as registerUser, logout as logoutUser, updateProfile as updateUserProfile } from '../lib/api';
-import { mockGroups, mockMessages, mockUsers, mockPosts } from '../data/mockData';
+import { supabase } from '../lib/supabase';
+import { 
+  createPost, 
+  login, 
+  register as registerUser, 
+  logout as logoutUser, 
+  updateProfile as updateUserProfile,
+  getPosts 
+} from '../lib/api';
+import { mockGroups, mockMessages } from '../data/mockData';
+import type { Profile } from '../types/database.types';
 
-interface User {
-  id: string;
-  name: string;
-  avatar: string;
-  coverImage?: string;
-  role: string;
-  department: string;
-  email?: string;
-  bio?: string;
-  location?: string;
-  phone?: string;
-  linkedin?: string;
-  managerId?: string | null;
-  directReports?: string[];
-  settings?: {
-    notifications: {
-      email: boolean;
-      push: boolean;
-      mentions: boolean;
-      comments: boolean;
-      likes: boolean;
-    };
-    privacy: {
-      profileVisibility: string;
-      showEmail: boolean;
-      showPhone: boolean;
-      allowMessages: boolean;
-    };
-    preferences: {
-      theme: string;
-      language: string;
-      timezone: string;
-    };
-  };
-}
+// Use Profile type from database, extend as needed for UI
+type User = Profile;
 
 interface Comment {
   id: string;
@@ -141,12 +117,110 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [users, setUsers] = useState<User[]>(mockUsers);
-  const [posts, setPosts] = useState<Post[]>(mockPosts);
+  const [users, setUsers] = useState<User[]>([]);
+  const [posts, setPosts] = useState<Post[]>([]);
   const [groups] = useState<Group[]>(mockGroups);
   const [messages] = useState<Message[]>(mockMessages);
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // Start with loading true
+  const [authInitialized, setAuthInitialized] = useState(false);
+
+  // Initialize auth state and set up listener
+  useEffect(() => {
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        // Load user profile
+        supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single()
+          .then(({ data: profile, error }) => {
+            if (error) {
+              console.error('Error loading profile:', error);
+            } else {
+              setCurrentUser(profile);
+            }
+            setLoading(false);
+            setAuthInitialized(true);
+          });
+      } else {
+        setLoading(false);
+        setAuthInitialized(true);
+      }
+    });
+
+    // Set up auth state listener
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event, session?.user?.id);
+
+      if (event === 'SIGNED_IN' && session?.user) {
+        // Load user profile on sign in
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+
+        if (error) {
+          console.error('Error loading profile after sign in:', error);
+        } else {
+          setCurrentUser(profile);
+        }
+      } else if (event === 'SIGNED_OUT') {
+        setCurrentUser(null);
+        setPosts([]);
+        setUsers([]);
+        setNotifications([]);
+      } else if (event === 'USER_UPDATED' && session?.user) {
+        // Reload profile on user update
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+
+        if (profile) {
+          setCurrentUser(profile);
+        }
+      }
+
+      setLoading(false);
+      setAuthInitialized(true);
+    });
+
+    // Cleanup subscription on unmount
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  // Load posts when user is authenticated
+  useEffect(() => {
+    if (currentUser && authInitialized) {
+      getPosts()
+        .then(posts => {
+          // Transform posts to match expected format
+          setPosts(posts.map((post: any) => ({
+            id: post.id,
+            userId: post.user_id,
+            content: post.content,
+            timestamp: post.created_at,
+            likes: post.reactions?.filter((r: any) => r.reaction_type === 'like').map((r: any) => r.user_id) || [],
+            comments: post.comments?.map((c: any) => ({
+              id: c.id,
+              userId: c.user_id,
+              content: c.content,
+              timestamp: c.created_at,
+            })) || [],
+          })));
+        })
+        .catch(error => console.error('Error loading posts:', error));
+    }
+  }, [currentUser, authInitialized]);
 
   const register = async (data: RegisterData) => {
     await registerUser(data);

@@ -1,65 +1,348 @@
-import { mockUsers } from '../data/mockData';
+import { supabase } from './supabase';
+import type { ProfileInsert, ProfileUpdate, PostInsert } from '../types/database.types';
+
+/**
+ * Authentication API Functions
+ * Using Supabase Auth for secure user authentication
+ */
 
 export async function login(email: string, password: string) {
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 500));
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
 
-  const user = mockUsers.find(u => u.email === email);
-  if (!user || user.password !== password) {
-    throw new Error('Invalid login credentials');
+  if (error) {
+    throw new Error(error.message || 'Invalid login credentials');
   }
 
-  // Remove password from returned user object
-  const { password: _, ...userWithoutPassword } = user;
-  return { user: userWithoutPassword };
+  if (!data.user) {
+    throw new Error('Login failed - no user returned');
+  }
+
+  // Fetch the user's profile
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', data.user.id)
+    .single();
+
+  if (profileError) {
+    console.error('Error fetching profile:', profileError);
+    throw new Error('Failed to load user profile');
+  }
+
+  return {
+    user: profile,
+    session: data.session,
+  };
 }
 
-export async function register(userData: any) {
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 500));
-
-  const newUser = {
-    id: Math.random().toString(36).substr(2, 9),
-    name: userData.name,
+export async function register(userData: {
+  email: string;
+  password: string;
+  name: string;
+  role?: string;
+  department?: string;
+  avatar?: string;
+}) {
+  // Sign up the user with Supabase Auth
+  const { data, error } = await supabase.auth.signUp({
     email: userData.email,
-    avatar: userData.avatar || 'https://images.pexels.com/photos/1681010/pexels-photo-1681010.jpeg?auto=compress&cs=tinysrgb&w=150',
+    password: userData.password,
+    options: {
+      data: {
+        name: userData.name,
+        avatar_url: userData.avatar || 'https://images.pexels.com/photos/1681010/pexels-photo-1681010.jpeg?auto=compress&cs=tinysrgb&w=150',
+      },
+    },
+  });
+
+  if (error) {
+    throw new Error(error.message || 'Registration failed');
+  }
+
+  if (!data.user) {
+    throw new Error('Registration failed - no user created');
+  }
+
+  // The profile is automatically created via database trigger (handle_new_user)
+  // Update profile with additional fields
+  const profileUpdates: ProfileUpdate = {
     role: userData.role || 'Member',
     department: userData.department || 'General',
   };
 
-  return { user: newUser };
+  const { error: updateError } = await supabase
+    .from('profiles')
+    .update(profileUpdates)
+    .eq('id', data.user.id);
+
+  if (updateError) {
+    console.error('Error updating profile:', updateError);
+  }
+
+  // Fetch the complete profile
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', data.user.id)
+    .single();
+
+  return {
+    user: profile,
+    session: data.session,
+  };
 }
 
 export async function logout() {
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 500));
+  const { error } = await supabase.auth.signOut();
+  
+  if (error) {
+    throw new Error(error.message || 'Logout failed');
+  }
 }
 
-export async function updateProfile(userId: string, updates: any) {
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 500));
+export async function resetPassword(email: string) {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}/reset-password`,
+  });
 
-  // Update the user in mockUsers array
-  const userIndex = mockUsers.findIndex(u => u.id === userId);
-  if (userIndex !== -1) {
-    mockUsers[userIndex] = { ...mockUsers[userIndex], ...updates };
+  if (error) {
+    throw new Error(error.message || 'Password reset failed');
   }
 
-  return { success: true, updates };
+  return { success: true, message: 'Password reset email sent' };
 }
 
-export async function createPost(postData: any) {
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 500));
+export async function updatePassword(newPassword: string) {
+  const { error } = await supabase.auth.updateUser({
+    password: newPassword,
+  });
 
-  const post = {
-    id: Math.random().toString(36).substr(2, 9),
-    userId: postData.userId,
+  if (error) {
+    throw new Error(error.message || 'Password update failed');
+  }
+
+  return { success: true };
+}
+
+/**
+ * Profile API Functions
+ */
+
+export async function updateProfile(userId: string, updates: ProfileUpdate) {
+  const { data, error } = await supabase
+    .from('profiles')
+    .update(updates)
+    .eq('id', userId)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(error.message || 'Profile update failed');
+  }
+
+  return { success: true, profile: data };
+}
+
+export async function getProfile(userId: string) {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', userId)
+    .single();
+
+  if (error) {
+    throw new Error(error.message || 'Failed to fetch profile');
+  }
+
+  return data;
+}
+
+/**
+ * Post API Functions
+ */
+
+export async function createPost(postData: {
+  userId: string;
+  content: string;
+}) {
+  const postInsert: PostInsert = {
+    user_id: postData.userId,
     content: postData.content,
-    timestamp: new Date().toISOString(),
-    likes: [],
-    comments: [],
   };
 
-  return { post };
+  const { data, error } = await supabase
+    .from('posts')
+    .insert(postInsert)
+    .select(`
+      *,
+      profiles:user_id (
+        id,
+        name,
+        avatar,
+        role,
+        department
+      )
+    `)
+    .single();
+
+  if (error) {
+    throw new Error(error.message || 'Failed to create post');
+  }
+
+  return { post: data };
+}
+
+export async function getPosts(limit = 50) {
+  const { data, error } = await supabase
+    .from('posts')
+    .select(`
+      *,
+      profiles:user_id (
+        id,
+        name,
+        avatar,
+        role,
+        department
+      ),
+      comments (
+        id,
+        content,
+        created_at,
+        profiles:user_id (
+          id,
+          name,
+          avatar
+        )
+      ),
+      reactions (
+        id,
+        user_id,
+        reaction_type
+      )
+    `)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    throw new Error(error.message || 'Failed to fetch posts');
+  }
+
+  return data;
+}
+
+export async function deletePost(postId: string, userId: string) {
+  const { error } = await supabase
+    .from('posts')
+    .delete()
+    .eq('id', postId)
+    .eq('user_id', userId); // Ensure user owns the post
+
+  if (error) {
+    throw new Error(error.message || 'Failed to delete post');
+  }
+
+  return { success: true };
+}
+
+/**
+ * Comment API Functions
+ */
+
+export async function addComment(commentData: {
+  postId: string;
+  userId: string;
+  content: string;
+}) {
+  const { data, error } = await supabase
+    .from('comments')
+    .insert({
+      post_id: commentData.postId,
+      user_id: commentData.userId,
+      content: commentData.content,
+    })
+    .select(`
+      *,
+      profiles:user_id (
+        id,
+        name,
+        avatar
+      )
+    `)
+    .single();
+
+  if (error) {
+    throw new Error(error.message || 'Failed to add comment');
+  }
+
+  return { comment: data };
+}
+
+/**
+ * Reaction API Functions
+ */
+
+export async function toggleReaction(reactionData: {
+  postId: string;
+  userId: string;
+  reactionType: 'like' | 'love' | 'celebrate' | 'insightful' | 'curious';
+}) {
+  // Check if user already reacted to this post
+  const { data: existing } = await supabase
+    .from('reactions')
+    .select('*')
+    .eq('post_id', reactionData.postId)
+    .eq('user_id', reactionData.userId)
+    .single();
+
+  if (existing) {
+    // If same reaction type, remove it (toggle off)
+    if (existing.reaction_type === reactionData.reactionType) {
+      const { error } = await supabase
+        .from('reactions')
+        .delete()
+        .eq('post_id', reactionData.postId)
+        .eq('user_id', reactionData.userId);
+
+      if (error) {
+        throw new Error(error.message || 'Failed to remove reaction');
+      }
+
+      return { action: 'removed', reaction: null };
+    } else {
+      // Update to new reaction type
+      const { data, error } = await supabase
+        .from('reactions')
+        .update({ reaction_type: reactionData.reactionType })
+        .eq('post_id', reactionData.postId)
+        .eq('user_id', reactionData.userId)
+        .select()
+        .single();
+
+      if (error) {
+        throw new Error(error.message || 'Failed to update reaction');
+      }
+
+      return { action: 'updated', reaction: data };
+    }
+  } else {
+    // Add new reaction
+    const { data, error } = await supabase
+      .from('reactions')
+      .insert({
+        post_id: reactionData.postId,
+        user_id: reactionData.userId,
+        reaction_type: reactionData.reactionType,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(error.message || 'Failed to add reaction');
+    }
+
+    return { action: 'added', reaction: data };
+  }
 }
