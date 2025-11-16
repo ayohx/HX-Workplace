@@ -4,10 +4,21 @@
  * This script creates test user accounts in Supabase for development and testing.
  * Run with: npx tsx scripts/seed-users.ts
  * 
- * IMPORTANT: 
- * - Requires .env.local with VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
- * - Email verification is typically disabled in Supabase dev mode
- * - Passwords are intentionally simple for testing (NOT for production!)
+ * IMPORTANT SETUP TO AVOID EMAIL BOUNCES:
+ * 
+ * 1. DISABLE EMAIL CONFIRMATION (Recommended for Development):
+ *    - Go to: https://supabase.com/dashboard/project/xbcwbzsgvmerkbnnplep/auth/settings
+ *    - Under "Email Auth" → Uncheck "Enable email confirmations"
+ *    - This prevents Supabase from sending verification emails to test accounts
+ * 
+ * 2. EMAIL STRATEGY:
+ *    - First test user uses REAL email (ayo.ogunrekun@holidayextras.com)
+ *    - Other test users use fake emails (safe when email confirmation disabled)
+ *    - Prevents email bounces and Supabase restrictions
+ * 
+ * 3. REQUIREMENTS:
+ *    - Requires .env.local with VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
+ *    - Passwords are intentionally simple for testing (NOT for production!)
  */
 
 import { createClient } from '@supabase/supabase-js';
@@ -31,16 +42,17 @@ if (!supabaseUrl || !supabaseAnonKey) {
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Test users based on mock data from src/data/mockData.ts
+// IMPORTANT: Using real email for primary test account to avoid bounces
 const testUsers = [
   {
-    email: 'sarah.johnson@holidayextras.com',
+    email: 'ayo.ogunrekun@holidayextras.com', // ✅ REAL EMAIL - Primary test account
     password: 'Test123!',
-    name: 'Sarah Johnson',
-    role: 'Product Manager',
-    department: 'Product',
+    name: 'Ayo Ogunrekun',
+    role: 'PPC Manager and AI Lead',
+    department: 'Marketing & Technology',
     avatar: 'https://images.pexels.com/photos/1181690/pexels-photo-1181690.jpeg?auto=compress&cs=tinysrgb&w=150',
-    bio: 'Leading the next generation of workplace collaboration tools.',
-    location: 'London, UK',
+    bio: 'Leading AI integration and PPC strategy for Holiday Extras.',
+    location: 'UK',
   },
   {
     email: 'michael.chen@holidayextras.com',
