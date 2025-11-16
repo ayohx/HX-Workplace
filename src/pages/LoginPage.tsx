@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAppContext } from '../contexts/AppContext';
+import { supabase } from '../lib/supabase';
 import { AlertCircle, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 
 const loginSchema = z.object({
@@ -29,12 +30,25 @@ const LoginPage: React.FC = () => {
     resolver: zodResolver(loginSchema),
   });
 
-  // Navigate to dashboard when user becomes authenticated
+  // Redirect if already authenticated (check both context and Supabase session)
   useEffect(() => {
-    if (isAuthenticated && currentUser) {
-      console.log('User authenticated, navigating to dashboard...');
-      navigate('/', { replace: true });
-    }
+    const checkExistingAuth = async () => {
+      // Check Supabase session directly
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        console.log('User already authenticated, redirecting to dashboard...');
+        navigate('/', { replace: true });
+        return;
+      }
+      
+      // Also check context state
+      if (isAuthenticated && currentUser) {
+        console.log('User authenticated via context, navigating to dashboard...');
+        navigate('/', { replace: true });
+      }
+    };
+    
+    checkExistingAuth();
   }, [isAuthenticated, currentUser, navigate]);
 
   const onSubmit = async (data: LoginFormData) => {
@@ -46,7 +60,17 @@ const LoginPage: React.FC = () => {
       await login({ email: data.email, password: data.password });
       
       console.log('Login function completed successfully');
-      // Navigation will happen automatically via useEffect when currentUser is set
+      
+      // Small delay to ensure auth state updates, then check if we should navigate
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      // Double-check session and navigate if needed
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        console.log('Session confirmed after login, navigating...');
+        navigate('/', { replace: true });
+      }
+      // Navigation will also happen automatically via useEffect when currentUser is set
     } catch (err: any) {
       console.error('Login error:', err);
       
