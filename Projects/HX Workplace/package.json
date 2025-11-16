@@ -12,6 +12,7 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
     "seed:users": "tsx scripts/seed-users.ts",
+    "cleanup:users": "tsx scripts/cleanup-users.ts",
     "bmad:refresh": "npx bmad-method@latest refresh",
     "bmad:list": "npx bmad-method@latest list",
     "bmad:validate": "npx bmad-method@latest validate"
