@@ -1,16 +1,53 @@
-import React, { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Outlet, useNavigate } from 'react-router-dom';
 import Header from '../components/layout/Header';
 import Sidebar from '../components/layout/Sidebar';
 import MobileNav from '../components/layout/MobileNav';
 import { useAppContext } from '../contexts/AppContext';
+import { supabase } from '../lib/supabase';
 
 const MainLayout: React.FC = () => {
-  const { currentUser } = useAppContext();
+  const { currentUser, loading } = useAppContext();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [checking, setChecking] = useState(true);
+  const navigate = useNavigate();
 
+  useEffect(() => {
+    // Check authentication status on mount
+    const checkAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          // No valid session, redirect to login
+          navigate('/login', { replace: true });
+        }
+      } catch (error) {
+        console.error('Auth check error:', error);
+        navigate('/login', { replace: true });
+      } finally {
+        setChecking(false);
+      }
+    };
+
+    checkAuth();
+  }, [navigate]);
+
+  // Show loading state while checking auth or loading user data
+  if (checking || loading) {
+    return (
+      <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <p className="text-neutral-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If still no user after loading, redirect
   if (!currentUser) {
-    return <div>Loading...</div>;
+    navigate('/login', { replace: true });
+    return null;
   }
 
   return (
