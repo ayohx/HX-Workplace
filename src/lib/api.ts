@@ -27,12 +27,34 @@ export async function login(email: string, password: string) {
 
     console.log('Auth successful, fetching profile for user:', data.user.id);
 
-    // Fetch the user's profile
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', data.user.id)
-      .single();
+    // Fetch the user's profile (non-blocking - return immediately if it takes too long)
+    let profile: any = null;
+    let profileError: any = null;
+    
+    try {
+      // Use Promise.race to timeout profile fetch after 2 seconds
+      const profilePromise = supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', data.user.id)
+        .single();
+      
+      const timeoutPromise = new Promise((resolve) => 
+        setTimeout(() => resolve({ data: null, error: { code: 'TIMEOUT' } }), 2000)
+      );
+      
+      const result = await Promise.race([profilePromise, timeoutPromise]) as any;
+      profile = result?.data;
+      profileError = result?.error;
+      
+      if (profileError?.code === 'TIMEOUT') {
+        console.warn('Profile fetch timed out, returning basic user data');
+        profileError = null; // Clear error so we return basic data
+      }
+    } catch (err: any) {
+      console.error('Profile fetch exception:', err);
+      profileError = err;
+    }
 
     if (profileError) {
       console.error('Error fetching profile:', profileError);
