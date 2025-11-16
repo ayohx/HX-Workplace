@@ -50,19 +50,56 @@ export async function login(email: string, password: string) {
           .single();
         
         if (createError) {
-          throw new Error('Failed to create user profile');
+          console.error('Failed to create profile:', createError);
+          // Still return user data even if profile creation fails - auth worked
+          console.log('Returning basic user data due to profile creation failure');
+          return {
+            user: {
+              id: data.user.id,
+              name: data.user.email?.split('@')[0] || 'User',
+              email: data.user.email || null,
+              avatar: null,
+              role: null,
+              department: null,
+            } as any,
+            session: data.session,
+          };
         }
         
+        console.log('Profile created successfully:', newProfile?.name);
         return {
           user: newProfile,
           session: data.session,
         };
       }
-      throw new Error('Failed to load user profile');
+      // For other errors, still return basic user data - auth succeeded
+      console.warn('Profile fetch failed, returning basic user data');
+      return {
+        user: {
+          id: data.user.id,
+          name: data.user.email?.split('@')[0] || 'User',
+          email: data.user.email || null,
+          avatar: null,
+          role: null,
+          department: null,
+        } as any,
+        session: data.session,
+      };
     }
 
     if (!profile) {
-      throw new Error('Profile not found');
+      console.warn('Profile is null, returning basic user data');
+      return {
+        user: {
+          id: data.user.id,
+          name: data.user.email?.split('@')[0] || 'User',
+          email: data.user.email || null,
+          avatar: null,
+          role: null,
+          department: null,
+        } as any,
+        session: data.session,
+      };
     }
 
     console.log('Login successful, profile loaded:', profile.name);

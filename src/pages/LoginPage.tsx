@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -15,7 +15,7 @@ const loginSchema = z.object({
 type LoginFormData = z.infer<typeof loginSchema>;
 
 const LoginPage: React.FC = () => {
-  const { login } = useAppContext();
+  const { login, currentUser, isAuthenticated } = useAppContext();
   const navigate = useNavigate();
   const location = useLocation();
   const [error, setError] = useState<string | null>(null);
@@ -29,14 +29,24 @@ const LoginPage: React.FC = () => {
     resolver: zodResolver(loginSchema),
   });
 
+  // Navigate to dashboard when user becomes authenticated
+  useEffect(() => {
+    if (isAuthenticated && currentUser) {
+      console.log('User authenticated, navigating to dashboard...');
+      navigate('/', { replace: true });
+    }
+  }, [isAuthenticated, currentUser, navigate]);
+
   const onSubmit = async (data: LoginFormData) => {
     try {
       setError(null);
+      console.log('Login form submitted for:', data.email);
+      
       // Call login with only email and password (ignore rememberMe for now)
       await login({ email: data.email, password: data.password });
-      // Small delay to ensure auth state is updated
-      await new Promise(resolve => setTimeout(resolve, 100));
-      navigate('/', { replace: true });
+      
+      console.log('Login function completed successfully');
+      // Navigation will happen automatically via useEffect when currentUser is set
     } catch (err: any) {
       console.error('Login error:', err);
       
