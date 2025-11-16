@@ -289,8 +289,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const loginUser = async (data: LoginData) => {
-    const { user } = await login(data.email, data.password);
-    setCurrentUser(user);
+    try {
+      setLoading(true);
+      const result = await login(data.email, data.password);
+      if (result?.user) {
+        setCurrentUser(result.user);
+        // Auth state listener will also update, but we set immediately for better UX
+      } else {
+        throw new Error('Login failed - no user returned');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      setCurrentUser(null);
+      throw error; // Re-throw so LoginPage can handle it
+    } finally {
+      setLoading(false);
+    }
   };
 
   const logout = async () => {

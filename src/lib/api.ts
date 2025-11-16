@@ -7,35 +7,73 @@ import type { ProfileInsert, ProfileUpdate, PostInsert } from '../types/database
  */
 
 export async function login(email: string, password: string) {
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
+  try {
+    console.log('Attempting login for:', email);
+    
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
-  if (error) {
-    throw new Error(error.message || 'Invalid login credentials');
+    if (error) {
+      console.error('Supabase auth error:', error);
+      throw new Error(error.message || 'Invalid login credentials');
+    }
+
+    if (!data.user) {
+      console.error('No user returned from Supabase');
+      throw new Error('Login failed - no user returned');
+    }
+
+    console.log('Auth successful, fetching profile for user:', data.user.id);
+
+    // Fetch the user's profile
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', data.user.id)
+      .single();
+
+    if (profileError) {
+      console.error('Error fetching profile:', profileError);
+      // If profile doesn't exist, create a basic one
+      if (profileError.code === 'PGRST116') {
+        console.warn('Profile not found, creating basic profile');
+        const { data: newProfile, error: createError } = await supabase
+          .from('profiles')
+          .insert({
+            id: data.user.id,
+            name: data.user.email?.split('@')[0] || 'User',
+            email: data.user.email || null,
+          })
+          .select()
+          .single();
+        
+        if (createError) {
+          throw new Error('Failed to create user profile');
+        }
+        
+        return {
+          user: newProfile,
+          session: data.session,
+        };
+      }
+      throw new Error('Failed to load user profile');
+    }
+
+    if (!profile) {
+      throw new Error('Profile not found');
+    }
+
+    console.log('Login successful, profile loaded:', profile.name);
+    return {
+      user: profile,
+      session: data.session,
+    };
+  } catch (error: any) {
+    console.error('Login function error:', error);
+    throw error;
   }
-
-  if (!data.user) {
-    throw new Error('Login failed - no user returned');
-  }
-
-  // Fetch the user's profile
-  const { data: profile, error: profileError } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', data.user.id)
-    .single();
-
-  if (profileError) {
-    console.error('Error fetching profile:', profileError);
-    throw new Error('Failed to load user profile');
-  }
-
-  return {
-    user: profile,
-    session: data.session,
-  };
 }
 
 export async function register(userData: {
