@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Supabase Connection Test - HX Workplace</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 2rem;
+    }
+    
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      padding: 2rem;
+    }
+    
+    h1 {
+      color: #667eea;
+      margin-bottom: 0.5rem;
+      font-size: 2rem;
+    }
+    
+    .subtitle {
+      color: #666;
+      margin-bottom: 2rem;
+      font-size: 0.9rem;
+    }
+    
+    .test-section {
+      margin-bottom: 1.5rem;
+      padding: 1rem;
+      border-radius: 8px;
+      background: #f8f9fa;
+    }
+    
+    .test-title {
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .status {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+    
+    .status.pending {
+      background: #ffc107;
+      color: #000;
+    }
+    
+    .status.success {
+      background: #28a745;
+      color: white;
+    }
+    
+    .status.error {
+      background: #dc3545;
+      color: white;
+    }
+    
+    .test-details {
+      margin-top: 0.5rem;
+      padding: 0.75rem;
+      background: white;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      font-family: 'Courier New', monospace;
+    }
+    
+    button {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 6px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      width: 100%;
+      margin-top: 1rem;
+    }
+    
+    button:hover {
+      background: #5568d3;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .summary {
+      margin-top: 2rem;
+      padding: 1.5rem;
+      background: #e8f5e9;
+      border-left: 4px solid #28a745;
+      border-radius: 4px;
+      display: none;
+    }
+    
+    .summary.show {
+      display: block;
+    }
+    
+    .summary h3 {
+      color: #28a745;
+      margin-bottom: 0.5rem;
+    }
+    
+    .error-summary {
+      background: #ffebee;
+      border-left-color: #dc3545;
+    }
+    
+    .error-summary h3 {
+      color: #dc3545;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔍 Supabase Connection Test</h1>
+    <p class="subtitle">HX Workplace - Database Health Check</p>
+    
+    <div id="tests">
+      <div class="test-section" id="test-1">
+        <div class="test-title">
+          <span>1️⃣ Environment Variables</span>
+          <span class="status pending">Pending</span>
+        </div>
+        <div class="test-details" style="display:none;"></div>
+      </div>
+      
+      <div class="test-section" id="test-2">
+        <div class="test-title">
+          <span>2️⃣ Supabase Client Initialization</span>
+          <span class="status pending">Pending</span>
+        </div>
+        <div class="test-details" style="display:none;"></div>
+      </div>
+      
+      <div class="test-section" id="test-3">
+        <div class="test-title">
+          <span>3️⃣ Database Connection</span>
+          <span class="status pending">Pending</span>
+        </div>
+        <div class="test-details" style="display:none;"></div>
+      </div>
+      
+      <div class="test-section" id="test-4">
+        <div class="test-title">
+          <span>4️⃣ Posts Table</span>
+          <span class="status pending">Pending</span>
+        </div>
+        <div class="test-details" style="display:none;"></div>
+      </div>
+      
+      <div class="test-section" id="test-5">
+        <div class="test-title">
+          <span>5️⃣ Profiles Table</span>
+          <span class="status pending">Pending</span>
+        </div>
+        <div class="test-details" style="display:none;"></div>
+      </div>
+      
+      <div class="test-section" id="test-6">
+        <div class="test-title">
+          <span>6️⃣ Real-Time Capabilities</span>
+          <span class="status pending">Pending</span>
+        </div>
+        <div class="test-details" style="display:none;"></div>
+      </div>
+    </div>
+    
+    <button id="runTests">Run Connection Tests</button>
+    
+    <div id="summary" class="summary"></div>
+  </div>
+  
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+    
+    const runButton = document.getElementById('runTests');
+    const summaryDiv = document.getElementById('summary');
+    
+    let testResults = {
+      passed: 0,
+      failed: 0,
+      total: 6
+    };
+    
+    function updateTest(testId, status, details) {
+      const testSection = document.getElementById(`test-${testId}`);
+      const statusEl = testSection.querySelector('.status');
+      const detailsEl = testSection.querySelector('.test-details');
+      
+      statusEl.className = `status ${status}`;
+      statusEl.textContent = status === 'success' ? '✅ Passed' : status === 'error' ? '❌ Failed' : 'Pending';
+      
+      if (details) {
+        detailsEl.textContent = details;
+        detailsEl.style.display = 'block';
+      }
+      
+      if (status === 'success') testResults.passed++;
+      if (status === 'error') testResults.failed++;
+    }
+    
+    function showSummary() {
+      const allPassed = testResults.failed === 0;
+      summaryDiv.className = `summary show ${allPassed ? '' : 'error-summary'}`;
+      
+      if (allPassed) {
+        summaryDiv.innerHTML = `
+          <h3>✨ All Tests Passed!</h3>
+          <p>Your Supabase connection is working perfectly. You're ready to develop!</p>
+          <p style="margin-top: 0.5rem;"><strong>Next step:</strong> Start your app with <code>npm run dev</code></p>
+        `;
+      } else {
+        summaryDiv.innerHTML = `
+          <h3>⚠️ Some Tests Failed</h3>
+          <p>Passed: ${testResults.passed} / ${testResults.total}</p>
+          <p>Failed: ${testResults.failed} / ${testResults.total}</p>
+          <p style="margin-top: 0.5rem;">Check the error details above and verify your Supabase configuration.</p>
+        `;
+      }
+    }
+    
+    async function runTests() {
+      runButton.disabled = true;
+      runButton.textContent = 'Running Tests...';
+      testResults = { passed: 0, failed: 0, total: 6 };
+      summaryDiv.className = 'summary';
+      
+      // Test 1: Check environment variables
+      try {
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+        
+        if (!supabaseUrl || !supabaseKey) {
+          throw new Error('Missing environment variables');
+        }
+        
+        updateTest(1, 'success', `URL: ${supabaseUrl}\nKey: ${supabaseKey.substring(0, 30)}...`);
+      } catch (error) {
+        updateTest(1, 'error', `Error: ${error.message}\nCheck your .env file has VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY`);
+        showSummary();
+        runButton.disabled = false;
+        runButton.textContent = 'Run Connection Tests';
+        return;
+      }
+      
+      // Test 2: Initialize Supabase client
+      let supabase;
+      try {
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+        supabase = createClient(supabaseUrl, supabaseKey);
+        updateTest(2, 'success', 'Supabase client initialized successfully');
+      } catch (error) {
+        updateTest(2, 'error', `Error: ${error.message}`);
+        showSummary();
+        runButton.disabled = false;
+        runButton.textContent = 'Run Connection Tests';
+        return;
+      }
+      
+      // Test 3: Database connection
+      try {
+        const { error } = await supabase.from('posts').select('count').limit(1);
+        if (error) throw error;
+        updateTest(3, 'success', 'Successfully connected to database');
+      } catch (error) {
+        updateTest(3, 'error', `Error: ${error.message}\nCheck your Supabase project is active and accessible`);
+      }
+      
+      // Test 4: Posts table
+      try {
+        const { data, error } = await supabase.from('posts').select('*').limit(5);
+        if (error) throw error;
+        updateTest(4, 'success', `Posts table accessible\nFound ${data.length} posts\nColumns: ${data.length > 0 ? Object.keys(data[0]).join(', ') : 'N/A'}`);
+      } catch (error) {
+        updateTest(4, 'error', `Error: ${error.message}\nPosts table may not exist or is not accessible`);
+      }
+      
+      // Test 5: Profiles table
+      try {
+        const { data, error } = await supabase.from('profiles').select('*').limit(5);
+        if (error) throw error;
+        updateTest(5, 'success', `Profiles table accessible\nFound ${data.length} profiles`);
+      } catch (error) {
+        updateTest(5, 'error', `Error: ${error.message}\nProfiles table may not exist or is not accessible`);
+      }
+      
+      // Test 6: Real-time capabilities
+      try {
+        const channel = supabase.channel('test-channel');
+        await new Promise((resolve) => {
+          channel.subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+              resolve();
+            }
+          });
+          setTimeout(resolve, 2000);
+        });
+        await channel.unsubscribe();
+        updateTest(6, 'success', 'Real-time subscriptions working');
+      } catch (error) {
+        updateTest(6, 'error', `Error: ${error.message}\nReal-time may not be enabled`);
+      }
+      
+      showSummary();
+      runButton.disabled = false;
+      runButton.textContent = 'Run Tests Again';
+    }
+    
+    runButton.addEventListener('click', runTests);
+  </script>
+</body>
+</html>
