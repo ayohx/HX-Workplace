@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAppContext } from '../contexts/AppContext';
-import { supabase } from '../lib/supabase';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { AlertCircle, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 
 const loginSchema = z.object({
@@ -30,30 +30,76 @@ const LoginPage: React.FC = () => {
     resolver: zodResolver(loginSchema),
   });
 
-  // Redirect if already authenticated (check both context and Supabase session)
+  // Redirect if already authenticated (check Supabase session directly)
   useEffect(() => {
+    let isChecking = false;
+    
     const checkExistingAuth = async () => {
-      // Check Supabase session directly
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        console.log('User already authenticated, redirecting to dashboard...');
-        navigate('/', { replace: true });
+      // Prevent multiple simultaneous checks
+      if (isChecking) return;
+      isChecking = true;
+      
+      // Don't redirect while submitting
+      if (isSubmitting) {
+        isChecking = false;
         return;
       }
       
-      // Also check context state
-      if (isAuthenticated && currentUser) {
-        console.log('User authenticated via context, navigating to dashboard...');
-        navigate('/', { replace: true });
+      try {
+        // Check Supabase session directly - this is the source of truth
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Error checking session:', error);
+          isChecking = false;
+          return;
+        }
+        
+        if (session?.user) {
+          console.log('User already authenticated, redirecting to dashboard...', session.user.id);
+          navigate('/', { replace: true });
+          return;
+        }
+      } catch (err) {
+        console.error('Exception checking session:', err);
+      } finally {
+        isChecking = false;
       }
     };
     
+    // Check immediately
     checkExistingAuth();
-  }, [isAuthenticated, currentUser, navigate]);
+    
+    // Also check multiple times to catch auth state updates
+    const timeouts = [
+      setTimeout(() => checkExistingAuth(), 300),
+      setTimeout(() => checkExistingAuth(), 800),
+      setTimeout(() => checkExistingAuth(), 1500),
+    ];
+    
+    return () => {
+      timeouts.forEach(clearTimeout);
+    };
+  }, [isSubmitting, navigate]);
+  
+  // Separate effect to handle navigation when context state updates
+  useEffect(() => {
+    if (isAuthenticated && currentUser && !isSubmitting) {
+      console.log('Auth state updated, navigating to dashboard...');
+      navigate('/', { replace: true });
+    }
+  }, [isAuthenticated, currentUser, navigate, isSubmitting]);
 
   const onSubmit = async (data: LoginFormData) => {
     try {
       setError(null);
+      
+      // Check if Supabase is configured
+      if (!isSupabaseConfigured()) {
+        setError('Supabase is not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env.local file.');
+        return;
+      }
+      
       console.log('Login form submitted for:', data.email);
       
       // Call login with only email and password (ignore rememberMe for now)
@@ -61,16 +107,43 @@ const LoginPage: React.FC = () => {
       
       console.log('Login function completed successfully');
       
-      // Small delay to ensure auth state updates, then check if we should navigate
-      await new Promise(resolve => setTimeout(resolve, 200));
+      // Wait for auth state to update and currentUser to be set
+      // Check multiple times with increasing delays to handle async state updates
+      let attempts = 0;
+      const maxAttempts = 15; // Increased attempts for more reliable navigation
       
-      // Double-check session and navigate if needed
+      while (attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 150));
+        
+        // Check both session and context state
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          // If we have a session, check if context has updated
+          if (isAuthenticated || currentUser) {
+            console.log('Session and user state confirmed, navigating...');
+            navigate('/', { replace: true });
+            return;
+          }
+          // If session exists but context hasn't updated yet, wait a bit more
+          if (attempts >= 5) {
+            // After 5 attempts (750ms), navigate anyway if session exists
+            console.log('Session exists, navigating (context may update after)...');
+            navigate('/', { replace: true });
+            return;
+          }
+        }
+        
+        attempts++;
+      }
+      
+      // Final check - if session exists, navigate regardless
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
-        console.log('Session confirmed after login, navigating...');
+        console.log('Session exists, navigating (final check)...');
         navigate('/', { replace: true });
+      } else {
+        throw new Error('Login completed but session not found');
       }
-      // Navigation will also happen automatically via useEffect when currentUser is set
     } catch (err: any) {
       console.error('Login error:', err);
       
@@ -79,6 +152,8 @@ const LoginPage: React.FC = () => {
         setError('The email or password you entered is incorrect. Please try again.');
       } else if (err.message?.includes('Email not confirmed')) {
         setError('Please check your email to confirm your account before logging in.');
+      } else if (err.message?.includes('Supabase')) {
+        setError(err.message);
       } else {
         setError(err.message || 'An error occurred while signing in. Please try again.');
       }

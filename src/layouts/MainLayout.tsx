@@ -1,39 +1,18 @@
-import React, { useState, useEffect } from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Outlet } from 'react-router-dom';
 import Header from '../components/layout/Header';
 import Sidebar from '../components/layout/Sidebar';
 import MobileNav from '../components/layout/MobileNav';
 import { useAppContext } from '../contexts/AppContext';
-import { supabase } from '../lib/supabase';
 
 const MainLayout: React.FC = () => {
-  const { currentUser, loading } = useAppContext();
+  const { currentUser, authLoading } = useAppContext();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [checking, setChecking] = useState(true);
-  const navigate = useNavigate();
 
-  useEffect(() => {
-    // Check authentication status on mount
-    const checkAuth = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
-          // No valid session, redirect to login
-          navigate('/login', { replace: true });
-        }
-      } catch (error) {
-        console.error('Auth check error:', error);
-        navigate('/login', { replace: true });
-      } finally {
-        setChecking(false);
-      }
-    };
-
-    checkAuth();
-  }, [navigate]);
-
-  // Show loading state while checking auth or loading user data
-  if (checking || loading) {
+  // ProtectedRoute already handles auth checking and loading state
+  // We only need to ensure we have a currentUser (which ProtectedRoute guarantees)
+  // But add a safety check in case something goes wrong
+  if (authLoading) {
     return (
       <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
         <div className="text-center">
@@ -44,19 +23,18 @@ const MainLayout: React.FC = () => {
     );
   }
 
-  // If still no user after loading, redirect
+  // Safety check: ProtectedRoute should prevent this, but just in case
   if (!currentUser) {
-    navigate('/login', { replace: true });
-    return null;
+    return null; // ProtectedRoute will handle redirect
   }
 
   return (
-    <div className="min-h-screen bg-neutral-50">
+    <div className="h-screen bg-neutral-50 flex flex-col overflow-hidden">
       <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
       
-      <div className="flex">
-        {/* Desktop sidebar */}
-        <div className="hidden md:block">
+      <div className="flex flex-1 overflow-hidden">
+        {/* Desktop sidebar - fixed height with independent scroll */}
+        <div className="hidden md:block flex-shrink-0">
           <Sidebar />
         </div>
         
@@ -73,8 +51,8 @@ const MainLayout: React.FC = () => {
           </div>
         )}
         
-        {/* Main content */}
-        <div className="flex-1 p-4 md:px-8 md:py-6">
+        {/* Main content - fixed height with independent scroll */}
+        <div className="flex-1 overflow-y-auto p-4 md:px-8 md:py-6">
           <Outlet />
         </div>
       </div>

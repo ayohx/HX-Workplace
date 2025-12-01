@@ -6,20 +6,32 @@ import PostCard from '../components/feed/PostCard';
 import PostSkeleton from '../components/feed/PostSkeleton';
 
 const Dashboard: React.FC = () => {
-  const { posts, groups, loading, loadMorePosts, hasMorePosts } = useAppContext();
+  const { posts, groups, loading, loadMorePosts, hasMorePosts, currentUser } = useAppContext();
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   
+  // Safety check: if no currentUser, something is wrong - show error message
+  if (!currentUser) {
+    console.error('Dashboard rendered without currentUser - this should not happen');
+    return (
+      <div className="max-w-5xl mx-auto">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+          <p className="text-red-700">Error: User not authenticated. Please refresh the page.</p>
+        </div>
+      </div>
+    );
+  }
+  
   // Sort posts by timestamp (newest first)
-  const sortedPosts = [...posts].sort((a, b) => 
+  const sortedPosts = Array.isArray(posts) ? [...posts].sort((a, b) => 
     new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-  );
+  ) : [];
   
   // Take 3 random groups for suggestions
-  const suggestedGroups = [...groups]
-    .sort(() => 0.5 - Math.random())
-    .slice(0, 3);
+  const suggestedGroups = Array.isArray(groups) && groups.length > 0
+    ? [...groups].sort(() => 0.5 - Math.random()).slice(0, 3)
+    : [];
   
   // Infinite scroll - load more posts when user scrolls to bottom
   useEffect(() => {
@@ -52,15 +64,15 @@ const Dashboard: React.FC = () => {
   }, [hasMorePosts, isLoadingMore, loading, loadMorePosts]);
   
   return (
-    <div className="max-w-5xl mx-auto pb-16 md:pb-0">
+    <div className="max-w-5xl mx-auto">
       <h1 className="text-2xl font-display font-bold text-neutral-800 mb-6">Home</h1>
       
-      <div className="flex flex-col md:flex-row gap-6">
-        {/* Main content */}
-        <div className="flex-1">
+      <div className="flex flex-col md:flex-row gap-6 h-[calc(100vh-120px)] md:h-[calc(100vh-140px)]">
+        {/* Main content - scrollable feed area */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden pr-2">
           <CreatePostCard />
           
-          <div className="space-y-4">
+          <div className="space-y-4 pb-4">
             {/* Show skeletons while initial loading */}
             {loading && posts.length === 0 && (
               <>
@@ -104,10 +116,11 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
         
-        {/* Sidebar */}
-        <div className="md:w-80 space-y-6">
-          {/* Suggested groups */}
-          <div className="bg-white rounded-lg shadow-card overflow-hidden">
+        {/* Right sidebar - independent scroll */}
+        <div className="hidden md:flex md:w-80 md:flex-col md:overflow-y-auto md:overflow-x-hidden md:pr-2">
+          <div className="space-y-6 pb-4">
+            {/* Suggested groups */}
+            <div className="bg-white rounded-lg shadow-card overflow-hidden">
             <div className="p-4 border-b border-neutral-200">
               <h2 className="font-semibold text-neutral-800">Suggested Groups</h2>
             </div>
@@ -148,6 +161,7 @@ const Dashboard: React.FC = () => {
                 <p className="text-sm">No upcoming events</p>
               </div>
             </div>
+          </div>
           </div>
         </div>
       </div>

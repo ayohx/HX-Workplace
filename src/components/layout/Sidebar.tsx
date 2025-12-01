@@ -43,10 +43,10 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   };
 
   return (
-    <div className="h-screen w-64 bg-white border-r border-neutral-200 flex flex-col">
+    <div className="h-full w-64 bg-white border-r border-neutral-200 flex flex-col overflow-hidden">
       {/* Mobile close button */}
       {onClose && (
-        <div className="p-4 md:hidden flex justify-end">
+        <div className="p-4 md:hidden flex justify-end flex-shrink-0">
           <button 
             onClick={onClose}
             className="p-1 hover:bg-neutral-100 rounded-full"
@@ -57,8 +57,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
         </div>
       )}
       
-      {/* Main navigation */}
-      <nav className="flex-1 px-4 py-6 overflow-y-auto">
+      {/* Main navigation - scrollable area */}
+      <nav className="flex-1 px-4 py-6 overflow-y-auto overflow-x-hidden">
         <ul className="space-y-1">
           {mainLinks.map((link) => (
             <li key={link.path}>
@@ -115,8 +115,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
         </div>
       </nav>
       
-      {/* Bottom links */}
-      <div className="p-4 border-t border-neutral-200">
+      {/* Bottom links - fixed at bottom */}
+      <div className="p-4 border-t border-neutral-200 flex-shrink-0">
         <ul className="space-y-1">
           {bottomLinks.map((link) => (
             <li key={link.path}>
