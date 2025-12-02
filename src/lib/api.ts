@@ -309,7 +309,7 @@ export async function deletePost(postId: string, userId: string) {
  * Comment API Functions
  */
 
-export async function addComment(commentData: {
+export async function createComment(commentData: {
   postId: string;
   userId: string;
   content: string;
@@ -332,22 +332,193 @@ export async function addComment(commentData: {
     .single();
 
   if (error) {
-    throw new Error(error.message || 'Failed to add comment');
+    throw new Error(error.message || 'Failed to create comment');
   }
 
   return { comment: data };
 }
 
+export async function getComments(postId: string, options: {
+  limit?: number;
+  offset?: number;
+} = {}) {
+  const { limit = 10, offset = 0 } = options;
+  
+  const { data, error } = await supabase
+    .from('comments')
+    .select(`
+      *,
+      profiles:user_id (
+        id,
+        name,
+        avatar
+      )
+    `)
+    .eq('post_id', postId)
+    .order('created_at', { ascending: false }) // Newest first by default
+    .range(offset, offset + limit - 1);
+
+  if (error) {
+    throw new Error(error.message || 'Failed to fetch comments');
+  }
+
+  return data;
+}
+
+export async function updateComment(commentId: string, userId: string, updates: {
+  content: string;
+}) {
+  const { data, error } = await supabase
+    .from('comments')
+    .update({
+      content: updates.content,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', commentId)
+    .eq('user_id', userId) // Ensure user owns the comment
+    .select(`
+      *,
+      profiles:user_id (
+        id,
+        name,
+        avatar
+      )
+    `)
+    .single();
+
+  if (error) {
+    throw new Error(error.message || 'Failed to update comment');
+  }
+
+  return { comment: data };
+}
+
+export async function deleteComment(commentId: string, userId: string) {
+  // Hard delete for comments (or implement soft delete if needed)
+  const { error } = await supabase
+    .from('comments')
+    .delete()
+    .eq('id', commentId)
+    .eq('user_id', userId); // Ensure user owns the comment
+
+  if (error) {
+    throw new Error(error.message || 'Failed to delete comment');
+  }
+
+  return { success: true };
+}
+
+// Legacy alias for backwards compatibility
+export const addComment = createComment;
+
 /**
  * Reaction API Functions
  */
 
+export type ReactionType = 'like' | 'love' | 'celebrate' | 'insightful' | 'curious';
+
+export async function addReaction(reactionData: {
+  postId: string;
+  userId: string;
+  type: ReactionType;
+}) {
+  // Use upsert to add or change reaction type atomically
+  // The UNIQUE constraint on (post_id, user_id) prevents duplicates
+  const { data, error } = await supabase
+    .from('reactions')
+    .upsert(
+      {
+        post_id: reactionData.postId,
+        user_id: reactionData.userId,
+        reaction_type: reactionData.type, // Database column is reaction_type
+      },
+      {
+        onConflict: 'post_id,user_id', // Handle unique constraint
+      }
+    )
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(error.message || 'Failed to add reaction');
+  }
+
+  return { reaction: data };
+}
+
+export async function removeReaction(reactionData: {
+  postId: string;
+  userId: string;
+}) {
+  const { error } = await supabase
+    .from('reactions')
+    .delete()
+    .eq('post_id', reactionData.postId)
+    .eq('user_id', reactionData.userId);
+
+  if (error) {
+    throw new Error(error.message || 'Failed to remove reaction');
+  }
+
+  return { success: true };
+}
+
+export async function getReactions(postId: string) {
+  const { data, error } = await supabase
+    .from('reactions')
+    .select(`
+      *,
+      profiles:user_id (
+        id,
+        name,
+        avatar
+      )
+    `)
+    .eq('post_id', postId);
+
+  if (error) {
+    throw new Error(error.message || 'Failed to fetch reactions');
+  }
+
+  // Aggregate reaction counts by type
+  const reactionCounts: Record<ReactionType, number> = {
+    like: 0,
+    love: 0,
+    celebrate: 0,
+    insightful: 0,
+    curious: 0,
+  };
+
+  const reactionUsers: Record<ReactionType, any[]> = {
+    like: [],
+    love: [],
+    celebrate: [],
+    insightful: [],
+    curious: [],
+  };
+
+  data.forEach((reaction: any) => {
+    const type = reaction.reaction_type as ReactionType;
+    if (reactionCounts[type] !== undefined) {
+      reactionCounts[type]++;
+      reactionUsers[type].push(reaction.profiles);
+    }
+  });
+
+  return {
+    counts: reactionCounts,
+    users: reactionUsers,
+    total: data.length,
+  };
+}
+
+// Legacy function for backwards compatibility
 export async function toggleReaction(reactionData: {
   postId: string;
   userId: string;
-  reactionType: 'like' | 'love' | 'celebrate' | 'insightful' | 'curious';
+  reactionType: ReactionType;
 }) {
-  // Check if user already reacted to this post
+  // Check if user already has this exact reaction
   const { data: existing } = await supabase
     .from('reactions')
     .select('*')
@@ -355,52 +526,23 @@ export async function toggleReaction(reactionData: {
     .eq('user_id', reactionData.userId)
     .single();
 
-  if (existing) {
-    // If same reaction type, remove it (toggle off)
-    if (existing.reaction_type === reactionData.reactionType) {
-      const { error } = await supabase
-        .from('reactions')
-        .delete()
-        .eq('post_id', reactionData.postId)
-        .eq('user_id', reactionData.userId);
-
-      if (error) {
-        throw new Error(error.message || 'Failed to remove reaction');
-      }
-
-      return { action: 'removed', reaction: null };
-    } else {
-      // Update to new reaction type
-      const { data, error } = await supabase
-        .from('reactions')
-        .update({ reaction_type: reactionData.reactionType })
-        .eq('post_id', reactionData.postId)
-        .eq('user_id', reactionData.userId)
-        .select()
-        .single();
-
-      if (error) {
-        throw new Error(error.message || 'Failed to update reaction');
-      }
-
-      return { action: 'updated', reaction: data };
-    }
+  if (existing && existing.reaction_type === reactionData.reactionType) {
+    // Same reaction - remove it (toggle off)
+    await removeReaction({
+      postId: reactionData.postId,
+      userId: reactionData.userId,
+    });
+    return { action: 'removed', reaction: null };
   } else {
-    // Add new reaction
-    const { data, error } = await supabase
-      .from('reactions')
-      .insert({
-        post_id: reactionData.postId,
-        user_id: reactionData.userId,
-        reaction_type: reactionData.reactionType,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      throw new Error(error.message || 'Failed to add reaction');
-    }
-
-    return { action: 'added', reaction: data };
+    // Different reaction or no reaction - add/update it
+    const result = await addReaction({
+      postId: reactionData.postId,
+      userId: reactionData.userId,
+      type: reactionData.reactionType,
+    });
+    return { 
+      action: existing ? 'updated' : 'added', 
+      reaction: result.reaction 
+    };
   }
 }

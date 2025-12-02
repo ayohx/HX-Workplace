@@ -8,7 +8,10 @@ import {
   updateProfile as updateUserProfile,
   getPosts,
   updatePost,
-  deletePost
+  deletePost,
+  addReaction,
+  removeReaction,
+  type ReactionType
 } from '../lib/api';
 import { mockGroups, mockMessages } from '../data/mockData';
 import type { Profile } from '../types/database.types';
@@ -116,6 +119,7 @@ interface AppContextType {
   hasMorePosts: boolean;
   addComment: (postId: string, content: string) => void;
   toggleLike: (postId: string) => void;
+  toggleReaction: (postId: string, reactionType: ReactionType) => Promise<void>;
   addNotification: (notification: Omit<Notification, 'id' | 'timestamp' | 'read'>) => void;
   markNotificationAsRead: (notificationId: string) => void;
   markAllNotificationsAsRead: () => void;
@@ -741,6 +745,79 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     );
   };
 
+  const toggleReaction = async (postId: string, reactionType: ReactionType) => {
+    if (!currentUser) return;
+
+    try {
+      // Find the post to check current user's reaction
+      const post = posts.find(p => p.id === postId);
+      if (!post) return;
+
+      // Check if user already has this reaction type
+      const existingReaction = post.reactions?.find(
+        (r: any) => r.user_id === currentUser.id
+      );
+
+      if (existingReaction && existingReaction.reaction_type === reactionType) {
+        // Same reaction - remove it (toggle off)
+        await removeReaction({
+          postId,
+          userId: currentUser.id,
+        });
+
+        // Optimistically update UI
+        setPosts(prevPosts =>
+          prevPosts.map(p => {
+            if (p.id === postId) {
+              return {
+                ...p,
+                reactions: p.reactions?.filter((r: any) => r.user_id !== currentUser.id) || [],
+              };
+            }
+            return p;
+          })
+        );
+      } else {
+        // Different reaction or no reaction - add/update it
+        await addReaction({
+          postId,
+          userId: currentUser.id,
+          type: reactionType,
+        });
+
+        // Optimistically update UI
+        setPosts(prevPosts =>
+          prevPosts.map(p => {
+            if (p.id === postId) {
+              const otherReactions = p.reactions?.filter((r: any) => r.user_id !== currentUser.id) || [];
+              return {
+                ...p,
+                reactions: [
+                  ...otherReactions,
+                  {
+                    id: `temp-${Date.now()}`,
+                    post_id: postId,
+                    user_id: currentUser.id,
+                    reaction_type: reactionType,
+                    created_at: new Date().toISOString(),
+                  },
+                ],
+              };
+            }
+            return p;
+          })
+        );
+      }
+
+      // Refresh posts from database to get accurate state
+      await fetchPosts();
+    } catch (error) {
+      console.error('Failed to toggle reaction:', error);
+      // Revert optimistic update by refreshing
+      await fetchPosts();
+    }
+  };
+
   const addNotification = (notification: Omit<Notification, 'id' | 'timestamp' | 'read'>) => {
     const newNotification: Notification = {
       ...notification,
@@ -819,6 +896,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     hasMorePosts,
     addComment,
     toggleLike,
+    toggleReaction,
     addNotification,
     markNotificationAsRead,
     markAllNotificationsAsRead,

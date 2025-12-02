@@ -5,13 +5,15 @@ import { useAppContext } from '../../contexts/AppContext';
 import { formatTimeAgo } from '../../utils/dateUtils';
 import Avatar from '../common/Avatar';
 import CommentList from './CommentList';
+import ReactionButton from './ReactionButton';
+import type { ReactionType } from '../../lib/api';
 
 interface PostCardProps {
   post: any;
 }
 
 const PostCard: React.FC<PostCardProps> = ({ post }) => {
-  const { users, currentUser, toggleLike, addComment, editPost, removePost } = useAppContext();
+  const { users, currentUser, toggleLike, toggleReaction, addComment, editPost, removePost } = useAppContext();
   const [showComments, setShowComments] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [showMenu, setShowMenu] = useState(false);
@@ -25,6 +27,33 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
   const isLiked = post.likes.includes(currentUser?.id);
   const commentsCount = post.comments.length;
   const isOwner = currentUser?.id === post.userId;
+
+  // Process reactions from database
+  const reactions = post.reactions || [];
+  const reactionCounts: Record<ReactionType, number> = {
+    like: 0,
+    love: 0,
+    celebrate: 0,
+    insightful: 0,
+    curious: 0,
+  };
+  
+  reactions.forEach((reaction: any) => {
+    const type = reaction.reaction_type as ReactionType;
+    if (reactionCounts[type] !== undefined) {
+      reactionCounts[type]++;
+    }
+  });
+
+  const currentUserReaction = reactions.find(
+    (r: any) => r.user_id === currentUser?.id
+  )?.reaction_type as ReactionType | null;
+
+  const handleReactionToggle = async (type: ReactionType) => {
+    if (currentUser) {
+      await toggleReaction(post.id, type);
+    }
+  };
   
   // Close menu when clicking outside
   useEffect(() => {
@@ -228,17 +257,12 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
       
       {/* Action buttons */}
       <div className="px-4 py-2 flex justify-between border-b border-neutral-100">
-        <button 
-          className={`flex items-center px-4 py-2 rounded-md ${
-            isLiked 
-              ? 'text-primary-600' 
-              : 'text-neutral-600 hover:bg-neutral-100'
-          }`}
-          onClick={handleToggleLike}
-        >
-          <ThumbsUp size={18} className="mr-2" />
-          <span>Like</span>
-        </button>
+        <ReactionButton
+          postId={post.id}
+          currentUserReaction={currentUserReaction}
+          reactionCounts={reactionCounts}
+          onReactionToggle={handleReactionToggle}
+        />
         
         <button 
           className="flex items-center px-4 py-2 rounded-md text-neutral-600 hover:bg-neutral-100"
