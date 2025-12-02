@@ -205,10 +205,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           }
 
           if (session?.user) {
-            // Set session flag immediately and stop loading
+            // CRITICAL FIX: Set basic user immediately to prevent blank screen
+            const basicUser = {
+              id: session.user.id,
+              email: session.user.email || null,
+              name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
+              avatar: session.user.user_metadata?.avatar_url || null,
+              role: null,
+              department: null,
+            } as any;
+            
+            // Set session flag AND basic user immediately to stop loading
             if (mounted) {
-              console.log('Session found in initializeAuth, setting loading to false and authInitialized to true');
+              console.log('Session found in initializeAuth, setting currentUser and loading to false');
               // Batch all state updates together - React will process them in one render
+              setCurrentUser(basicUser); // Set basic user IMMEDIATELY
               setHasSession(true);
               setLoading(false);
               setAuthInitialized(true); // CRITICAL: Set this immediately so authLoading becomes false
@@ -218,7 +229,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               }
             }
             
-            // Load user profile (but don't block on it)
+            // Load full user profile (upgrade from basic - non-blocking)
             try {
               const { data: profile, error: profileError } = await supabase
                 .from('profiles')
@@ -227,20 +238,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 .single();
 
               if (profileError) {
-                console.error('Error loading profile:', profileError);
-                // Set basic user even if profile fails
-                if (mounted) {
-                  setCurrentUser({
-                    id: session.user.id,
-                    email: session.user.email || null,
-                    name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
-                    avatar: session.user.user_metadata?.avatar_url || null,
-                    role: null,
-                    department: null,
-                  } as any);
-                }
-              } else if (mounted) {
+                console.error('Error loading full profile:', profileError);
+                // Basic user already set, so we're good
+              } else if (mounted && profile) {
+                // Upgrade to full profile
                 setCurrentUser(profile);
+                console.log('Profile upgraded to full profile');
               }
             } catch (profileErr) {
               console.error('Exception loading profile:', profileErr);
@@ -297,19 +300,32 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           // Set session flag immediately so isAuthenticated becomes true
           // AND set loading to false immediately - don't wait for profile
           console.log('Auth state listener: SIGNED_IN/INITIAL_SESSION detected, setting loading to false immediately');
+          
+          // CRITICAL FIX: Set a basic user immediately so MainLayout doesn't return null
+          // This prevents the blank screen issue while profile is loading
+          const basicUser = {
+            id: session.user.id,
+            email: session.user.email || null,
+            name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
+            avatar: session.user.user_metadata?.avatar_url || null,
+            role: null,
+            department: null,
+          } as any;
+          
           if (mounted) {
             // Batch all state updates together - React will process them in one render
+            setCurrentUser(basicUser); // Set basic user IMMEDIATELY
             setHasSession(true);
             setLoading(false);
             setAuthInitialized(true);
-            console.log('State updated: hasSession=true, loading=false, authInitialized=true');
+            console.log('State updated: currentUser set, hasSession=true, loading=false, authInitialized=true');
             if (timeoutRef.current) {
               clearTimeout(timeoutRef.current);
               timeoutRef.current = null;
             }
           }
           
-          // Load user profile on sign in or initial session (non-blocking)
+          // Load full user profile (upgrade from basic user - non-blocking)
           const { data: profile, error } = await supabase
             .from('profiles')
             .select('*')
@@ -317,20 +333,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             .single();
 
           if (error) {
-            console.error('Error loading profile after sign in:', error);
-            // Even if profile fails, set a basic user object so auth works
-            if (mounted) {
-              setCurrentUser({
-                id: session.user.id,
-                email: session.user.email || null,
-                name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
-                avatar: session.user.user_metadata?.avatar_url || null,
-                role: null,
-                department: null,
-              } as any);
-            }
-          } else if (mounted) {
+            console.error('Error loading full profile:', error);
+            // Basic user already set, so we're good
+          } else if (mounted && profile) {
+            // Upgrade to full profile
             setCurrentUser(profile);
+            console.log('Profile upgraded to full profile');
           }
         } else if (event === 'SIGNED_OUT') {
           if (mounted) {

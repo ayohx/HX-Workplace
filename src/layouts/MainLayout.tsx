@@ -6,26 +6,26 @@ import MobileNav from '../components/layout/MobileNav';
 import { useAppContext } from '../contexts/AppContext';
 
 const MainLayout: React.FC = () => {
-  const { currentUser, authLoading } = useAppContext();
+  const { currentUser, authLoading, isAuthenticated } = useAppContext();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // ProtectedRoute already handles auth checking and loading state
-  // We only need to ensure we have a currentUser (which ProtectedRoute guarantees)
-  // But add a safety check in case something goes wrong
-  if (authLoading) {
+  // Show loading spinner while:
+  // 1. Auth is still initializing (authLoading)
+  // 2. OR user is authenticated but profile hasn't loaded yet (isAuthenticated but no currentUser)
+  if (authLoading || (isAuthenticated && !currentUser)) {
     return (
       <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
-          <p className="text-neutral-600">Loading...</p>
+          <p className="text-neutral-600">Loading your profile...</p>
         </div>
       </div>
     );
   }
 
-  // Safety check: ProtectedRoute should prevent this, but just in case
+  // Safety check: If not authenticated and no currentUser, ProtectedRoute will redirect
   if (!currentUser) {
-    return null; // ProtectedRoute will handle redirect
+    return null;
   }
 
   return (
