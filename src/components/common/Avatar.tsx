@@ -50,20 +50,23 @@ const Avatar: React.FC<AvatarProps> = ({ user, size = 'md', className = '' }) =>
     lg: 'w-14 h-14',
   };
   
+  // Fallback for undefined or incomplete user data
+  const userName = user?.name || 'User';
+  
   // Use avatar if available, otherwise use default with initials
-  const avatarSrc = user.avatar || getDefaultAvatar(user.name);
+  const avatarSrc = user?.avatar || getDefaultAvatar(userName);
   
   return (
     <div className={`flex-shrink-0 ${className}`}>
       <img 
         src={avatarSrc} 
-        alt={user.name}
+        alt={userName}
         className={`${sizeClasses[size]} rounded-full object-cover border border-neutral-200`}
         onError={(e) => {
           // Fallback to default if image fails to load
           const target = e.target as HTMLImageElement;
-          if (target.src !== getDefaultAvatar(user.name)) {
-            target.src = getDefaultAvatar(user.name);
+          if (target.src !== getDefaultAvatar(userName)) {
+            target.src = getDefaultAvatar(userName);
           }
         }}
       />

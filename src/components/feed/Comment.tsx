@@ -57,7 +57,11 @@ const Comment: React.FC<CommentProps> = ({
   const menuRef = useRef<HTMLDivElement>(null);
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const author = comment.profiles || comment.author;
+  const author = comment.profiles || comment.author || {
+    id: comment.user_id,
+    name: 'Unknown User',
+    avatar: null,
+  };
   const isOwner = currentUser?.id === comment.user_id;
   const canReply = depth < maxDepth;
 

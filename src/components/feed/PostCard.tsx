@@ -75,9 +75,18 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Use post.profiles if available (from database), otherwise fall back to users array
-  const author = post.profiles || users.find(user => user.id === post.userId);
-  const commentsCount = post.comments.length;
+  const author = post.profiles || users.find(user => user.id === post.userId) || {
+    id: post.userId,
+    name: 'Unknown User',
+    avatar: null,
+    role: null,
+    department: null,
+  };
+  const commentsCount = post.comments?.length || 0;
   const isOwner = currentUser?.id === post.userId;
+  
+  // Get the timestamp - prefer created_at, fall back to timestamp for backwards compatibility
+  const postDate = post.created_at || post.timestamp;
 
   // Process reactions from database
   const reactions = post.reactions || [];
@@ -167,7 +176,7 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
               </Link>
               <span className="mx-1 text-neutral-400">•</span>
               <span className="text-sm text-neutral-500">
-                {formatTimeAgo(new Date(post.timestamp))}
+                {postDate ? formatTimeAgo(new Date(postDate)) : 'Recently'}
               </span>
             </div>
             <p className="text-xs text-neutral-500">{author.role}</p>
