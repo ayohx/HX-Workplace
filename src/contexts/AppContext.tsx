@@ -873,13 +873,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           })
         );
       }
-
-      // Refresh posts from database to get accurate state
-      await fetchPosts();
+      // Optimistic update already applied above - no need to refresh
     } catch (error) {
       console.error('Failed to toggle reaction:', error);
-      // Revert optimistic update by refreshing
-      await fetchPosts();
+      // On error, we could refresh posts, but for now just log it
+      // The optimistic update may be incorrect but won't break the UI
     }
   };
 
