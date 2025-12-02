@@ -164,28 +164,28 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
   if (!author) return null;
 
   return (
-    <div className="bg-white rounded-lg shadow-card overflow-hidden mb-4 animate-fade-in">
+    <div className="bg-white rounded-lg shadow-card overflow-hidden mb-3 sm:mb-4 animate-fade-in">
       {/* Post header */}
-      <div className="p-4 flex items-start justify-between border-b border-neutral-100">
-        <div className="flex items-start">
-          <Avatar user={author} size="md" />
-          <div className="ml-3">
-            <div className="flex items-center">
-              <Link to={`/profile/${author.id}`} className="font-medium text-neutral-800 hover:underline">
+      <div className="p-3 sm:p-4 flex items-start justify-between border-b border-neutral-100">
+        <div className="flex items-start min-w-0 flex-1">
+          <Avatar user={author} size="md" className="flex-shrink-0" />
+          <div className="ml-2 sm:ml-3 min-w-0 flex-1">
+            <div className="flex items-center flex-wrap gap-x-1">
+              <Link to={`/profile/${author.id}`} className="font-medium text-neutral-800 hover:underline text-sm sm:text-base truncate">
                 {author.name}
               </Link>
-              <span className="mx-1 text-neutral-400">•</span>
-              <span className="text-sm text-neutral-500">
+              <span className="text-neutral-400 hidden xs:inline">•</span>
+              <span className="text-xs sm:text-sm text-neutral-500">
                 {postDate ? formatTimeAgo(new Date(postDate)) : 'Recently'}
               </span>
             </div>
-            <p className="text-xs text-neutral-500">{author.role}</p>
+            <p className="text-xs text-neutral-500 truncate">{author.role}</p>
           </div>
         </div>
         {isOwner && (
-          <div className="relative" ref={menuRef}>
+          <div className="relative flex-shrink-0 ml-2" ref={menuRef}>
             <button 
-              className="p-1 rounded-full hover:bg-neutral-100 text-neutral-500"
+              className="p-1.5 rounded-full hover:bg-neutral-100 text-neutral-500"
               aria-label="More options"
               onClick={() => setShowMenu(!showMenu)}
             >
@@ -194,23 +194,23 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
             
             {/* Dropdown menu */}
             {showMenu && (
-              <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-neutral-200 py-1 z-10">
+              <div className="absolute right-0 mt-1 w-40 sm:w-48 bg-white rounded-lg shadow-lg border border-neutral-200 py-1 z-10">
                 <button
-                  className="w-full px-4 py-2 text-left hover:bg-neutral-100 flex items-center text-neutral-700"
+                  className="w-full px-3 sm:px-4 py-2 text-left hover:bg-neutral-100 flex items-center text-neutral-700 text-sm"
                   onClick={() => {
                     setShowEditModal(true);
                     setShowMenu(false);
                     setEditContent(post.content);
                   }}
                 >
-                  <Edit2 size={16} className="mr-2" />
+                  <Edit2 size={14} className="mr-2" />
                   Edit post
                 </button>
                 <button
-                  className="w-full px-4 py-2 text-left hover:bg-neutral-100 flex items-center text-red-600"
+                  className="w-full px-3 sm:px-4 py-2 text-left hover:bg-neutral-100 flex items-center text-red-600 text-sm"
                   onClick={handleDeletePost}
                 >
-                  <Trash2 size={16} className="mr-2" />
+                  <Trash2 size={14} className="mr-2" />
                   Delete post
                 </button>
               </div>
@@ -220,8 +220,8 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
       </div>
       
       {/* Post content */}
-      <div className="p-4">
-        <p className="text-neutral-800 whitespace-pre-line">{post.content}</p>
+      <div className="p-3 sm:p-4">
+        <p className="text-neutral-800 whitespace-pre-line text-sm sm:text-base">{post.content}</p>
         
         {/* Images from media_url (database format) */}
         {post.media_url && Array.isArray(post.media_url) && post.media_url.length > 0 && (
@@ -231,7 +231,7 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
                 key={`media-${index}`}
                 src={url} 
                 alt={`Post image ${index + 1}`}
-                className="rounded-lg max-h-96 w-auto"
+                className="rounded-lg max-h-64 sm:max-h-96 w-auto max-w-full"
                 onError={(e) => {
                   // Hide broken images
                   const target = e.target as HTMLImageElement;
@@ -251,7 +251,7 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
                   <img 
                     src={attachment.url} 
                     alt={attachment.name || 'Post image'} 
-                    className="rounded-lg max-h-96 w-auto"
+                    className="rounded-lg max-h-64 sm:max-h-96 w-auto max-w-full"
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
                       target.style.display = 'none';
@@ -265,7 +265,7 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
                     <div className="bg-primary-100 text-primary-600 p-2 rounded mr-2">
                       <span className="font-medium text-xs">{attachment.name?.split('.').pop()?.toUpperCase() || 'FILE'}</span>
                     </div>
-                    <span className="text-sm text-neutral-700">{attachment.name || 'Attachment'}</span>
+                    <span className="text-xs sm:text-sm text-neutral-700 truncate">{attachment.name || 'Attachment'}</span>
                   </a>
                 )}
               </div>
@@ -275,12 +275,12 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
       </div>
       
       {/* Post stats */}
-      <div className="px-4 py-2 border-t border-b border-neutral-100 flex justify-between text-sm text-neutral-500">
+      <div className="px-3 sm:px-4 py-2 border-t border-b border-neutral-100 flex justify-between text-xs sm:text-sm text-neutral-500">
         <div>
           {post.likes.length > 0 && (
             <div className="flex items-center">
               <span className="flex items-center justify-center w-5 h-5 bg-primary-100 rounded-full mr-1">
-                <ThumbsUp size={12} className="text-primary-600" />
+                <ThumbsUp size={10} className="text-primary-600" />
               </span>
               <span>{post.likes.length}</span>
             </div>
@@ -298,8 +298,8 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
         </div>
       </div>
       
-      {/* Action buttons */}
-      <div className="px-4 py-2 flex justify-between border-b border-neutral-100">
+      {/* Action buttons - responsive layout */}
+      <div className="px-2 sm:px-4 py-1.5 sm:py-2 flex justify-between border-b border-neutral-100">
         <ReactionButton
           currentUserReaction={currentUserReaction}
           reactionCounts={reactionCounts}
@@ -307,22 +307,22 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
         />
         
         <button 
-          className="flex items-center px-4 py-2 rounded-md text-neutral-600 hover:bg-neutral-100"
+          className="flex items-center px-2 sm:px-4 py-1.5 sm:py-2 rounded-md text-neutral-600 hover:bg-neutral-100 text-sm"
           onClick={() => setShowComments(!showComments)}
         >
-          <MessageSquare size={18} className="mr-2" />
-          <span>Comment</span>
+          <MessageSquare size={16} className="sm:mr-2" />
+          <span className="hidden sm:inline">Comment</span>
         </button>
         
-        <button className="flex items-center px-4 py-2 rounded-md text-neutral-600 hover:bg-neutral-100">
-          <Share2 size={18} className="mr-2" />
-          <span>Share</span>
+        <button className="flex items-center px-2 sm:px-4 py-1.5 sm:py-2 rounded-md text-neutral-600 hover:bg-neutral-100 text-sm">
+          <Share2 size={16} className="sm:mr-2" />
+          <span className="hidden sm:inline">Share</span>
         </button>
       </div>
       
       {/* Comments section */}
       {(showComments || commentsCount > 0) && (
-        <div className="p-4">
+        <div className="p-3 sm:p-4">
           {/* Comment list */}
           <CommentList 
             comments={post.comments} 
@@ -367,30 +367,30 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
         </div>
       )}
       
-      {/* Edit Modal */}
+      {/* Edit Modal - Mobile optimised */}
       {showEditModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+          <div className="bg-white rounded-t-xl sm:rounded-lg w-full sm:max-w-2xl max-h-[85vh] sm:max-h-[90vh] overflow-y-auto">
             {/* Modal header */}
-            <div className="flex items-center justify-between p-4 border-b border-neutral-200">
-              <h2 className="text-lg font-semibold text-neutral-800">Edit Post</h2>
+            <div className="flex items-center justify-between p-3 sm:p-4 border-b border-neutral-200 sticky top-0 bg-white">
+              <h2 className="text-base sm:text-lg font-semibold text-neutral-800">Edit Post</h2>
               <button
                 onClick={() => {
                   setShowEditModal(false);
                   setEditContent(post.content);
                 }}
-                className="p-1 rounded-full hover:bg-neutral-100 text-neutral-500"
+                className="p-1.5 rounded-full hover:bg-neutral-100 text-neutral-500"
                 disabled={isSubmitting}
               >
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
             
             {/* Modal body */}
             <form onSubmit={handleEditPost}>
-              <div className="p-4">
+              <div className="p-3 sm:p-4">
                 <textarea
-                  className="w-full min-h-[150px] p-3 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 resize-vertical"
+                  className="w-full min-h-[120px] sm:min-h-[150px] p-3 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 resize-vertical text-sm sm:text-base"
                   value={editContent}
                   onChange={(e) => setEditContent(e.target.value)}
                   placeholder="What's on your mind?"
@@ -400,24 +400,24 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
               </div>
               
               {/* Modal footer */}
-              <div className="flex items-center justify-end gap-2 p-4 border-t border-neutral-200">
+              <div className="flex items-center justify-end gap-2 p-3 sm:p-4 border-t border-neutral-200 sticky bottom-0 bg-white">
                 <button
                   type="button"
                   onClick={() => {
                     setShowEditModal(false);
                     setEditContent(post.content);
                   }}
-                  className="px-4 py-2 text-neutral-600 hover:bg-neutral-100 rounded-lg"
+                  className="px-3 sm:px-4 py-2 text-neutral-600 hover:bg-neutral-100 rounded-lg text-sm sm:text-base"
                   disabled={isSubmitting}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-3 sm:px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
                   disabled={!editContent.trim() || isSubmitting}
                 >
-                  {isSubmitting ? 'Saving...' : 'Save Changes'}
+                  {isSubmitting ? 'Saving...' : 'Save'}
                 </button>
               </div>
             </form>

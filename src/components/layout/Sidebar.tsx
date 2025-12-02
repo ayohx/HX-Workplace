@@ -43,35 +43,35 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   };
 
   return (
-    <div className="h-full w-64 bg-white border-r border-neutral-200 flex flex-col overflow-hidden">
+    <div className="h-full w-56 xl:w-60 bg-white border-r border-neutral-200 flex flex-col overflow-hidden">
       {/* Mobile close button */}
       {onClose && (
-        <div className="p-4 md:hidden flex justify-end flex-shrink-0">
+        <div className="p-3 md:hidden flex justify-end flex-shrink-0">
           <button 
             onClick={onClose}
-            className="p-1 hover:bg-neutral-100 rounded-full"
+            className="p-1.5 hover:bg-neutral-100 rounded-full"
             aria-label="Close sidebar"
           >
-            <X size={20} className="text-neutral-600" />
+            <X size={18} className="text-neutral-600" />
           </button>
         </div>
       )}
       
       {/* Main navigation - scrollable area */}
-      <nav className="flex-1 px-4 py-6 overflow-y-auto overflow-x-hidden">
-        <ul className="space-y-1">
+      <nav className="flex-1 px-3 py-4 overflow-y-auto overflow-x-hidden">
+        <ul className="space-y-0.5">
           {mainLinks.map((link) => (
             <li key={link.path}>
               <Link
                 to={link.path}
-                className={`flex items-center px-3 py-2 rounded-lg transition-colors ${
+                className={`flex items-center px-2.5 py-2 rounded-lg transition-colors text-sm ${
                   isActive(link.path)
                     ? 'bg-primary-50 text-primary-600'
                     : 'text-neutral-600 hover:bg-neutral-100'
                 }`}
                 onClick={onClose}
               >
-                <span className="mr-3">{link.icon}</span>
+                <span className="mr-2.5">{link.icon}</span>
                 <span className="font-medium">{link.label}</span>
               </Link>
             </li>
@@ -79,23 +79,23 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
         </ul>
         
         {/* Groups section */}
-        <div className="mt-8">
-          <h3 className="px-3 text-xs font-semibold text-neutral-500 uppercase tracking-wider">
+        <div className="mt-6">
+          <h3 className="px-2.5 text-xs font-semibold text-neutral-500 uppercase tracking-wider">
             My Groups
           </h3>
-          <ul className="mt-2 space-y-1">
+          <ul className="mt-2 space-y-0.5">
             {groups.slice(0, 5).map((group) => (
               <li key={group.id}>
                 <Link
                   to={`/groups/${group.id}`}
-                  className={`flex items-center px-3 py-2 rounded-lg transition-colors ${
+                  className={`flex items-center px-2.5 py-1.5 rounded-lg transition-colors text-sm ${
                     isActive(`/groups/${group.id}`)
                       ? 'bg-primary-50 text-primary-600'
                       : 'text-neutral-600 hover:bg-neutral-100'
                   }`}
                   onClick={onClose}
                 >
-                  <span className="w-6 h-6 mr-3 flex items-center justify-center bg-primary-100 text-primary-600 rounded-md text-sm font-medium">
+                  <span className="w-5 h-5 mr-2 flex items-center justify-center bg-primary-100 text-primary-600 rounded text-xs font-medium flex-shrink-0">
                     {group.name.charAt(0)}
                   </span>
                   <span className="font-medium truncate">{group.name}</span>
@@ -105,7 +105,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
             <li>
               <Link
                 to="/groups"
-                className="flex items-center px-3 py-2 text-sm text-primary-600 hover:underline"
+                className="flex items-center px-2.5 py-1.5 text-sm text-primary-600 hover:underline"
                 onClick={onClose}
               >
                 See all groups
@@ -116,16 +116,16 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       </nav>
       
       {/* Bottom links - fixed at bottom */}
-      <div className="p-4 border-t border-neutral-200 flex-shrink-0">
-        <ul className="space-y-1">
+      <div className="p-3 border-t border-neutral-200 flex-shrink-0">
+        <ul className="space-y-0.5">
           {bottomLinks.map((link) => (
             <li key={link.path}>
               <Link
                 to={link.path}
-                className="flex items-center px-3 py-2 rounded-lg text-neutral-600 hover:bg-neutral-100 transition-colors"
+                className="flex items-center px-2.5 py-2 rounded-lg text-neutral-600 hover:bg-neutral-100 transition-colors text-sm"
                 onClick={onClose}
               >
-                <span className="mr-3">{link.icon}</span>
+                <span className="mr-2.5">{link.icon}</span>
                 <span className="font-medium">{link.label}</span>
               </Link>
             </li>
