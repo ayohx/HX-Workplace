@@ -1,14 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ThumbsUp, Heart, PartyPopper, Lightbulb, HelpCircle, Sparkles } from 'lucide-react';
+import { ThumbsUp, Heart, PartyPopper, Lightbulb, HelpCircle } from 'lucide-react';
 import type { ReactionType } from '../../lib/api';
-import GiphyPicker from './GiphyPicker';
 
 interface ReactionButtonProps {
-  postId: string;
   currentUserReaction: ReactionType | null;
   reactionCounts: Record<ReactionType, number>;
   onReactionToggle: (type: ReactionType) => void;
-  onGiphySelect?: (gif: { id: string; url: string; title: string }) => void;
 }
 
 const reactionConfig: Record<ReactionType, { icon: React.ReactNode; label: string; emoji: string; color: string }> = {
@@ -45,14 +42,11 @@ const reactionConfig: Record<ReactionType, { icon: React.ReactNode; label: strin
 };
 
 const ReactionButton: React.FC<ReactionButtonProps> = ({
-  postId,
   currentUserReaction,
   reactionCounts,
   onReactionToggle,
-  onGiphySelect,
 }) => {
   const [showPicker, setShowPicker] = useState(false);
-  const [showGiphyPicker, setShowGiphyPicker] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
 
   // Close picker when clicking outside
@@ -105,68 +99,38 @@ const ReactionButton: React.FC<ReactionButtonProps> = ({
         )}
       </button>
 
-      {/* Reaction picker */}
+      {/* Reaction picker - Emojis only */}
       {showPicker && (
-        <div className="absolute bottom-full left-0 mb-2 bg-white rounded-lg shadow-lg border border-neutral-200 p-2 z-10 animate-fade-in">
-          <div className="flex gap-1">
-            {(Object.keys(reactionConfig) as ReactionType[]).map((type) => {
-              const config = reactionConfig[type];
-              const count = reactionCounts[type];
-              const isActive = currentUserReaction === type;
+        <div className="absolute bottom-full left-0 mb-2 bg-white rounded-lg shadow-lg border border-neutral-200 p-2 flex gap-1 z-10 animate-fade-in">
+          {(Object.keys(reactionConfig) as ReactionType[]).map((type) => {
+            const config = reactionConfig[type];
+            const count = reactionCounts[type];
+            const isActive = currentUserReaction === type;
 
-              return (
-                <button
-                  key={type}
-                  className={`group relative flex flex-col items-center p-2 rounded-md hover:bg-neutral-100 transition-all ${
-                    isActive ? 'bg-neutral-100' : ''
-                  }`}
-                  onClick={() => handleReactionClick(type)}
-                  title={config.label}
-                >
-                  <span className="text-2xl transform group-hover:scale-125 transition-transform">
-                    {config.emoji}
-                  </span>
-                  {count > 0 && (
-                    <span className="text-xs text-neutral-500 mt-1">{count}</span>
-                  )}
-                  
-                  {/* Tooltip */}
-                  <div className="absolute bottom-full mb-1 px-2 py-1 bg-neutral-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                    {config.label}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* GIPHY button */}
-          {onGiphySelect && (
-            <>
-              <div className="border-t border-neutral-200 my-2"></div>
+            return (
               <button
-                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md hover:bg-gradient-to-r hover:from-purple-100 hover:to-pink-100 text-neutral-700 hover:text-purple-700 transition-all group"
-                onClick={() => {
-                  setShowGiphyPicker(true);
-                  setShowPicker(false);
-                }}
+                key={type}
+                className={`group relative flex flex-col items-center p-2 rounded-md hover:bg-neutral-100 transition-all ${
+                  isActive ? 'bg-neutral-100' : ''
+                }`}
+                onClick={() => handleReactionClick(type)}
+                title={config.label}
               >
-                <Sparkles size={16} className="group-hover:animate-pulse" />
-                <span className="text-sm font-medium">GIF Reaction</span>
+                <span className="text-2xl transform group-hover:scale-125 transition-transform">
+                  {config.emoji}
+                </span>
+                {count > 0 && (
+                  <span className="text-xs text-neutral-500 mt-1">{count}</span>
+                )}
+                
+                {/* Tooltip */}
+                <div className="absolute bottom-full mb-1 px-2 py-1 bg-neutral-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                  {config.label}
+                </div>
               </button>
-            </>
-          )}
+            );
+          })}
         </div>
-      )}
-
-      {/* GIPHY Picker Modal */}
-      {showGiphyPicker && onGiphySelect && (
-        <GiphyPicker
-          onSelect={(gif) => {
-            onGiphySelect(gif);
-            setShowGiphyPicker(false);
-          }}
-          onClose={() => setShowGiphyPicker(false)}
-        />
       )}
     </div>
   );

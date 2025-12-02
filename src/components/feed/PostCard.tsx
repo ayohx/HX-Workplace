@@ -6,16 +6,68 @@ import { formatTimeAgo } from '../../utils/dateUtils';
 import Avatar from '../common/Avatar';
 import CommentList from './CommentList';
 import ReactionButton from './ReactionButton';
+import CommentForm from './CommentForm';
 import type { ReactionType } from '../../lib/api';
 
+interface Reaction {
+  id: string;
+  user_id: string;
+  reaction_type: ReactionType;
+}
+
+interface Attachment {
+  id?: string;
+  url: string;
+  type: 'image' | 'video' | 'file';
+  name?: string;
+}
+
+interface CommentData {
+  id: string;
+  content: string;
+  user_id: string;
+  parent_id?: string | null;
+  created_at: string;
+  updated_at?: string;
+  giphy_id?: string | null;
+  giphy_url?: string | null;
+  profiles?: {
+    id: string;
+    name: string;
+    avatar?: string | null;
+  };
+  replies?: CommentData[];
+}
+
+interface Post {
+  id: string;
+  userId: string;
+  content: string;
+  created_at: string;
+  updated_at?: string;
+  timestamp?: string; // For backwards compatibility
+  likes: string[];
+  reactions: Reaction[];
+  comments: CommentData[];
+  attachments?: Attachment[];
+  media_url?: string | null;
+  profiles?: {
+    id: string;
+    name: string;
+    avatar?: string | null;
+    role?: string | null;
+    department?: string | null;
+    jobTitle?: string;
+  };
+}
+
 interface PostCardProps {
-  post: any;
+  post: Post;
 }
 
 const PostCard: React.FC<PostCardProps> = ({ post }) => {
-  const { users, currentUser, toggleLike, toggleReaction, addComment, editPost, removePost } = useAppContext();
+  const { users, currentUser, toggleReaction, addComment, editComment, removeComment, editPost, removePost } = useAppContext();
   const [showComments, setShowComments] = useState(false);
-  const [newComment, setNewComment] = useState('');
   const [showMenu, setShowMenu] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editContent, setEditContent] = useState(post.content);
@@ -24,7 +76,6 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
 
   // Use post.profiles if available (from database), otherwise fall back to users array
   const author = post.profiles || users.find(user => user.id === post.userId);
-  const isLiked = post.likes.includes(currentUser?.id);
   const commentsCount = post.comments.length;
   const isOwner = currentUser?.id === post.userId;
 
@@ -38,7 +89,7 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
     curious: 0,
   };
   
-  reactions.forEach((reaction: any) => {
+  reactions.forEach((reaction: Reaction) => {
     const type = reaction.reaction_type as ReactionType;
     if (reactionCounts[type] !== undefined) {
       reactionCounts[type]++;
@@ -46,7 +97,7 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
   });
 
   const currentUserReaction = reactions.find(
-    (r: any) => r.user_id === currentUser?.id
+    (r: Reaction) => r.user_id === currentUser?.id
   )?.reaction_type as ReactionType | null;
 
   const handleReactionToggle = async (type: ReactionType) => {
@@ -68,23 +119,6 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [showMenu]);
-  
-  const handleToggleLike = () => {
-    if (currentUser) {
-      toggleLike(post.id, currentUser.id);
-    }
-  };
-  
-  const handleSubmitComment = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newComment.trim() && currentUser) {
-      addComment(post.id, {
-        userId: currentUser.id,
-        content: newComment,
-      });
-      setNewComment('');
-    }
-  };
   
   const handleEditPost = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -202,7 +236,7 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
         {/* Attachments (legacy mock data format) */}
         {post.attachments && Array.isArray(post.attachments) && post.attachments.length > 0 && (
           <div className="mt-3">
-            {post.attachments.map((attachment: any) => (
+            {post.attachments.map((attachment: Attachment) => (
               <div key={attachment.id || attachment.url} className="mt-2">
                 {attachment.type === 'image' ? (
                   <img 
@@ -258,7 +292,6 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
       {/* Action buttons */}
       <div className="px-4 py-2 flex justify-between border-b border-neutral-100">
         <ReactionButton
-          postId={post.id}
           currentUserReaction={currentUserReaction}
           reactionCounts={reactionCounts}
           onReactionToggle={handleReactionToggle}
@@ -282,32 +315,46 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
       {(showComments || commentsCount > 0) && (
         <div className="p-4">
           {/* Comment list */}
-          <CommentList comments={post.comments} users={users} />
+          <CommentList 
+            comments={post.comments} 
+            postId={post.id}
+            onReply={(parentId) => {
+              console.log('Reply to comment:', parentId);
+              // TODO: Implement reply functionality
+            }}
+            onEdit={async (commentId, content) => {
+              try {
+                await editComment(post.id, commentId, content);
+              } catch (error) {
+                console.error('Failed to edit comment:', error);
+                alert('Failed to edit comment. Please try again.');
+              }
+            }}
+            onDelete={async (commentId) => {
+              try {
+                await removeComment(post.id, commentId);
+              } catch (error) {
+                console.error('Failed to delete comment:', error);
+                alert('Failed to delete comment. Please try again.');
+              }
+            }}
+          />
           
-          {/* Comment form */}
-          <div className="mt-3 flex">
-            {currentUser && (
-              <Avatar user={currentUser} size="sm" className="mr-2 flex-shrink-0" />
-            )}
-            <form className="flex-1" onSubmit={handleSubmitComment}>
-              <div className="flex rounded-full border border-neutral-300 bg-neutral-50 overflow-hidden">
-                <input
-                  type="text"
-                  placeholder="Write a comment..."
-                  className="flex-1 px-4 py-2 bg-transparent focus:outline-none"
-                  value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
-                />
-                <button 
-                  type="submit" 
-                  disabled={!newComment.trim()}
-                  className="px-4 text-primary-600 font-medium disabled:opacity-50"
-                >
-                  Post
-                </button>
-              </div>
-            </form>
-          </div>
+          {/* Comment form with GIPHY support */}
+          <CommentForm
+            currentUser={currentUser}
+            onSubmit={(content, giphyData) => {
+              if (currentUser) {
+                addComment(post.id, {
+                  userId: currentUser.id,
+                  content: content,
+                  giphyId: giphyData?.id,
+                  giphyUrl: giphyData?.url,
+                });
+              }
+            }}
+            placeholder="Write a comment..."
+          />
         </div>
       )}
       

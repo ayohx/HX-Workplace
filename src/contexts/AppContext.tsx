@@ -11,6 +11,9 @@ import {
   deletePost,
   addReaction,
   removeReaction,
+  createComment,
+  updateComment,
+  deleteComment,
   type ReactionType
 } from '../lib/api';
 import { mockGroups, mockMessages } from '../data/mockData';
@@ -117,7 +120,9 @@ interface AppContextType {
   removePost: (postId: string) => Promise<void>;
   loadMorePosts: () => Promise<void>;
   hasMorePosts: boolean;
-  addComment: (postId: string, content: string) => void;
+  addComment: (postId: string, commentData: { userId: string; content: string; giphyId?: string; giphyUrl?: string }) => Promise<void>;
+  editComment: (postId: string, commentId: string, content: string) => Promise<void>;
+  removeComment: (postId: string, commentId: string) => Promise<void>;
   toggleLike: (postId: string) => void;
   toggleReaction: (postId: string, reactionType: ReactionType) => Promise<void>;
   addNotification: (notification: Omit<Notification, 'id' | 'timestamp' | 'read'>) => void;
@@ -710,23 +715,83 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
-  const addComment = (postId: string, content: string) => {
+  const addComment = async (postId: string, commentData: { userId: string; content: string; giphyId?: string; giphyUrl?: string }) => {
     if (!currentUser) return;
     
-    const newComment: Comment = {
-      id: Math.random().toString(36).substr(2, 9),
-      userId: currentUser.id,
-      content,
-      timestamp: new Date().toISOString()
-    };
+    try {
+      // Call the API to create the comment in Supabase
+      const { comment } = await createComment({
+        postId,
+        userId: commentData.userId,
+        content: commentData.content,
+        giphyId: commentData.giphyId,
+        giphyUrl: commentData.giphyUrl,
+      });
 
-    setPosts(prevPosts =>
-      prevPosts.map(post =>
-        post.id === postId
-          ? { ...post, comments: [...post.comments, newComment] }
-          : post
-      )
-    );
+      // Update local state with the new comment
+      setPosts(prevPosts =>
+        prevPosts.map(post =>
+          post.id === postId
+            ? { ...post, comments: [...post.comments, comment] }
+            : post
+        )
+      );
+    } catch (error) {
+      console.error('Error adding comment:', error);
+      // Optionally show error to user
+    }
+  };
+
+  const editComment = async (postId: string, commentId: string, content: string) => {
+    if (!currentUser) return;
+    
+    try {
+      // Call the API to update the comment in Supabase
+      const { comment: updatedComment } = await updateComment(commentId, currentUser.id, { content });
+
+      // Update local state with the updated comment
+      setPosts(prevPosts =>
+        prevPosts.map(post => {
+          if (post.id === postId) {
+            return {
+              ...post,
+              comments: post.comments.map(comment =>
+                comment.id === commentId ? updatedComment : comment
+              )
+            };
+          }
+          return post;
+        })
+      );
+    } catch (error) {
+      console.error('Error editing comment:', error);
+      throw error; // Re-throw so the UI can handle it
+    }
+  };
+
+  const removeComment = async (postId: string, commentId: string) => {
+    if (!currentUser) return;
+    
+    try {
+      // Call the API to delete the comment from Supabase
+      await deleteComment(commentId, currentUser.id);
+
+      // Update local state by removing the comment
+      setPosts(prevPosts =>
+        prevPosts.map(post => {
+          if (post.id === postId) {
+            return {
+              ...post,
+              comments: post.comments.filter(comment => comment.id !== commentId)
+            };
+          }
+          return post;
+        })
+      );
+    } catch (error) {
+      console.error('Error deleting comment:', error);
+      throw error; // Re-throw so the UI can handle it
+    }
   };
 
   const toggleLike = (postId: string) => {
@@ -895,6 +960,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     loadMorePosts,
     hasMorePosts,
     addComment,
+    editComment,
+    removeComment,
     toggleLike,
     toggleReaction,
     addNotification,

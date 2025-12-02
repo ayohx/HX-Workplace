@@ -1,16 +1,27 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, X, TrendingUp } from 'lucide-react';
 
+interface GifData {
+  id: string;
+  url: string;
+  title: string;
+  images: {
+    fixed_height: {
+      url: string;
+    };
+  };
+}
+
 interface GiphyPickerProps {
   onSelect: (gif: { id: string; url: string; title: string }) => void;
   onClose: () => void;
 }
 
-const GIPHY_API_KEY = import.meta.env.VITE_GIPHY_API_KEY || '';
+const GIPHY_API_KEY = import.meta.env.VITE_GIPHY_API_KEY || 'h0ltNlAZDz1RfmYw9FxsmwD52SGCuxJd';
 
 const GiphyPicker: React.FC<GiphyPickerProps> = ({ onSelect, onClose }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [gifs, setGifs] = useState<any[]>([]);
+  const [gifs, setGifs] = useState<GifData[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'trending' | 'search'>('trending');
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -79,7 +90,7 @@ const GiphyPicker: React.FC<GiphyPickerProps> = ({ onSelect, onClose }) => {
           query
         )}&limit=20&rating=g`
       );
-      const data = await response.json();
+      const data: { data: GifData[] } = await response.json();
       setGifs(data.data || []);
     } catch (error) {
       console.error('Failed to search GIFs:', error);
@@ -89,7 +100,7 @@ const GiphyPicker: React.FC<GiphyPickerProps> = ({ onSelect, onClose }) => {
     }
   };
 
-  const handleGifSelect = (gif: any) => {
+  const handleGifSelect = (gif: GifData) => {
     onSelect({
       id: gif.id,
       url: gif.images.fixed_height.url,

@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { ProfileInsert, ProfileUpdate, PostInsert } from '../types/database.types';
+import type { ProfileUpdate, PostInsert } from '../types/database.types';
 
 /**
  * Authentication API Functions
@@ -47,10 +47,10 @@ export async function login(email: string, password: string) {
     console.log('Login function completing, returning basic user data');
     
     return {
-      user: basicUser as any,
+      user: basicUser,
       session: authResult.data.session,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Login function error:', error);
     throw error;
   }
@@ -259,7 +259,7 @@ export async function getPosts(options: {
 
 export async function updatePost(postId: string, userId: string, updates: {
   content?: string;
-}) {
+}): Promise<{ post: any }> {
   const { data, error } = await supabase
     .from('posts')
     .update({
@@ -288,7 +288,7 @@ export async function updatePost(postId: string, userId: string, updates: {
   return { post: data };
 }
 
-export async function deletePost(postId: string, userId: string) {
+export async function deletePost(postId: string, userId: string): Promise<{ success: boolean }> {
   // Soft delete: set deleted_at timestamp instead of removing from database
   const { error } = await supabase
     .from('posts')
@@ -313,13 +313,19 @@ export async function createComment(commentData: {
   postId: string;
   userId: string;
   content: string;
-}) {
+  parentId?: string;
+  giphyId?: string;
+  giphyUrl?: string;
+}): Promise<{ comment: any }> {
   const { data, error } = await supabase
     .from('comments')
     .insert({
       post_id: commentData.postId,
       user_id: commentData.userId,
       content: commentData.content,
+      parent_id: commentData.parentId || null,
+      giphy_id: commentData.giphyId || null,
+      giphy_url: commentData.giphyUrl || null,
     })
     .select(`
       *,
@@ -367,7 +373,7 @@ export async function getComments(postId: string, options: {
 
 export async function updateComment(commentId: string, userId: string, updates: {
   content: string;
-}) {
+}): Promise<{ comment: any }> {
   const { data, error } = await supabase
     .from('comments')
     .update({
@@ -393,7 +399,7 @@ export async function updateComment(commentId: string, userId: string, updates: 
   return { comment: data };
 }
 
-export async function deleteComment(commentId: string, userId: string) {
+export async function deleteComment(commentId: string, userId: string): Promise<{ success: boolean }> {
   // Hard delete for comments (or implement soft delete if needed)
   const { error } = await supabase
     .from('comments')
@@ -421,7 +427,7 @@ export async function addReaction(reactionData: {
   postId: string;
   userId: string;
   type: ReactionType;
-}) {
+}): Promise<{ reaction: any }> {
   // Use upsert to add or change reaction type atomically
   // The UNIQUE constraint on (post_id, user_id) prevents duplicates
   const { data, error } = await supabase
@@ -449,7 +455,7 @@ export async function addReaction(reactionData: {
 export async function removeReaction(reactionData: {
   postId: string;
   userId: string;
-}) {
+}): Promise<{ success: boolean }> {
   const { error } = await supabase
     .from('reactions')
     .delete()

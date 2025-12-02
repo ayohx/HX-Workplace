@@ -2,8 +2,25 @@ import React, { useState, useMemo } from 'react';
 import Comment from './Comment';
 import { MessageSquare } from 'lucide-react';
 
+interface CommentData {
+  id: string;
+  content: string;
+  user_id: string;
+  parent_id?: string | null;
+  created_at: string;
+  updated_at?: string;
+  giphy_id?: string | null;
+  giphy_url?: string | null;
+  profiles?: {
+    id: string;
+    name: string;
+    avatar?: string | null;
+  };
+  replies?: CommentData[];
+}
+
 interface CommentListProps {
-  comments: any[];
+  comments: CommentData[];
   postId: string;
   onReply?: (parentId: string, content: string) => void;
   onEdit?: (commentId: string, content: string) => void;
@@ -32,7 +49,7 @@ const CommentList: React.FC<CommentListProps> = ({
     });
 
     // Build the tree structure
-    const rootComments: any[] = [];
+    const rootComments: CommentData[] = [];
     commentMap.forEach((comment) => {
       if (comment.parent_id) {
         // This is a reply
@@ -57,9 +74,9 @@ const CommentList: React.FC<CommentListProps> = ({
     });
 
     // Sort replies within each comment (always oldest first for replies)
-    const sortReplies = (comment: any) => {
+    const sortReplies = (comment: CommentData) => {
       if (comment.replies && comment.replies.length > 0) {
-        comment.replies.sort((a: any, b: any) => {
+        comment.replies.sort((a: CommentData, b: CommentData) => {
           const dateA = new Date(a.created_at).getTime();
           const dateB = new Date(b.created_at).getTime();
           return dateA - dateB; // Oldest first for replies

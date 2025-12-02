@@ -14,6 +14,7 @@ import NotFound from './pages/NotFound';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import SupabaseTest from './pages/SupabaseTest';
+import DiagnosticPage from './pages/DiagnosticPage';
 import { useAppContext } from './contexts/AppContext';
 import ErrorBoundary from './components/ErrorBoundary';
 
@@ -70,8 +71,9 @@ function App() {
       <AppProvider>
         <Router>
           <Routes>
-            {/* Public test route - no auth required */}
+            {/* Public test routes - no auth required */}
             <Route path="/test-supabase" element={<SupabaseTest />} />
+            <Route path="/diagnostics" element={<DiagnosticPage />} />
             
             {/* Auth routes - redirect if already authenticated */}
             <Route path="/login" element={<AuthRoute><AuthLayout><LoginPage /></AuthLayout></AuthRoute>} />

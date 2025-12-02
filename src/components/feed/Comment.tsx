@@ -5,8 +5,30 @@ import { formatTimeAgo } from '../../utils/dateUtils';
 import Avatar from '../common/Avatar';
 import { useAppContext } from '../../contexts/AppContext';
 
+interface CommentData {
+  id: string;
+  content: string;
+  user_id: string;
+  parent_id?: string | null;
+  created_at: string;
+  updated_at?: string;
+  giphy_id?: string | null;
+  giphy_url?: string | null;
+  profiles?: {
+    id: string;
+    name: string;
+    avatar?: string | null;
+  };
+  author?: {
+    id: string;
+    name: string;
+    avatar?: string | null;
+  };
+  replies?: CommentData[];
+}
+
 interface CommentProps {
-  comment: any;
+  comment: CommentData;
   postId: string;
   onReply?: (commentId: string) => void;
   onEdit?: (commentId: string, content: string) => void;
@@ -203,9 +225,23 @@ const Comment: React.FC<CommentProps> = ({
           </div>
         ) : (
           <div className="mt-1">
-            <p className="text-sm text-neutral-800 whitespace-pre-wrap break-words">
-              {comment.content}
-            </p>
+            {/* Text content */}
+            {comment.content && (
+              <p className="text-sm text-neutral-800 whitespace-pre-wrap break-words">
+                {comment.content}
+              </p>
+            )}
+            
+            {/* GIPHY GIF if present */}
+            {comment.giphy_url && (
+              <div className="mt-2">
+                <img
+                  src={comment.giphy_url}
+                  alt={comment.giphy_id || 'GIF'}
+                  className="max-h-48 rounded-lg border border-neutral-200"
+                />
+              </div>
+            )}
           </div>
         )}
 
@@ -287,7 +323,7 @@ const Comment: React.FC<CommentProps> = ({
         {/* Nested replies */}
         {comment.replies && comment.replies.length > 0 && (
           <div className="mt-2">
-            {comment.replies.map((reply: any) => (
+            {comment.replies.map((reply: CommentData) => (
               <Comment
                 key={reply.id}
                 comment={reply}
