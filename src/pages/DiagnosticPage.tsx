@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 const DiagnosticPage: React.FC = () => {
   const [checks, setChecks] = useState({
@@ -8,6 +8,7 @@ const DiagnosticPage: React.FC = () => {
     canQueryPosts: false,
     canQueryProfiles: false,
     error: null as string | null,
+    details: {} as Record<string, string>,
   });
 
   useEffect(() => {
@@ -15,15 +16,32 @@ const DiagnosticPage: React.FC = () => {
   }, []);
 
   const runDiagnostics = async () => {
-    const results = { ...checks };
+    const results = { 
+      ...checks, 
+      details: {} as Record<string, string>,
+      error: null as string | null,
+    };
 
     try {
-      // Check 1: Supabase configured
-      results.supabaseConfigured = !!supabase;
+      // Check 1: Supabase configured (using the actual isSupabaseConfigured function)
+      results.supabaseConfigured = isSupabaseConfigured();
+      results.details.supabaseUrl = import.meta.env.VITE_SUPABASE_URL ? 'Set' : 'NOT SET';
+      results.details.supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY ? `Set (${import.meta.env.VITE_SUPABASE_ANON_KEY.length} chars)` : 'NOT SET';
+      
+      if (!results.supabaseConfigured) {
+        results.error = 'Supabase environment variables not set. Please configure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in Netlify.';
+        setChecks(results);
+        return;
+      }
       
       // Check 2: Can connect to Supabase
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       results.supabaseConnected = !sessionError;
+      if (sessionError) {
+        results.details.sessionError = sessionError.message;
+      } else {
+        results.details.hasSession = sessionData?.session ? 'Yes' : 'No';
+      }
 
       // Check 3: Can query posts table
       try {
@@ -86,6 +104,17 @@ const DiagnosticPage: React.FC = () => {
             label="Can Query Profiles Table" 
             status={checks.canQueryProfiles} 
           />
+
+          {/* Environment Variable Details */}
+          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
+            <h3 className="font-semibold text-blue-800 mb-2">Environment Details:</h3>
+            <div className="text-sm text-blue-700 space-y-1">
+              <p><strong>VITE_SUPABASE_URL:</strong> {checks.details.supabaseUrl || 'Checking...'}</p>
+              <p><strong>VITE_SUPABASE_ANON_KEY:</strong> {checks.details.supabaseKey || 'Checking...'}</p>
+              {checks.details.hasSession && <p><strong>Has Session:</strong> {checks.details.hasSession}</p>}
+              {checks.details.sessionError && <p><strong>Session Error:</strong> {checks.details.sessionError}</p>}
+            </div>
+          </div>
 
           {checks.error && (
             <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-md">
